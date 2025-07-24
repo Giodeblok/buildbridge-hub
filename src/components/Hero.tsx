@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-construction.jpg";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
@@ -26,10 +29,20 @@ const Hero = () => {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Button variant="hero" size="lg" className="text-lg px-8 py-3">
+          <Button 
+            variant="hero" 
+            size="lg" 
+            className="text-lg px-8 py-3"
+            onClick={() => navigate('/tool-selection')}
+          >
             Start je integratie
           </Button>
-          <Button variant="outline" size="lg" className="text-lg px-8 py-3 border-white text-white hover:bg-white hover:text-construction-primary">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="text-lg px-8 py-3 border-white text-white hover:bg-white hover:text-construction-primary"
+            onClick={() => navigate('/dashboard')}
+          >
             Bekijk demo
           </Button>
         </div>

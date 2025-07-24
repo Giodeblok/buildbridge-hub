@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Building2, FileSpreadsheet, MessageSquare, Calendar, Database, Shield } from "lucide-react";
+import { Building2, FileSpreadsheet, MessageSquare, Calendar, Database, Shield, Layers, Box, CheckSquare, PenTool, FileText, Calculator } from "lucide-react";
 
 const integrations = [
   {
@@ -37,6 +37,42 @@ const integrations = [
     name: "Veiligheid",
     description: "Alle data blijft in je eigen systemen",
     color: "text-construction-primary"
+  },
+  {
+    icon: Layers,
+    name: "Asta Powerproject",
+    description: "Geavanceerde projectplanning en resourcebeheer",
+    color: "text-purple-600"
+  },
+  {
+    icon: Box,
+    name: "Autodesk Revit",
+    description: "BIM modeling en 3D ontwerp integratie",
+    color: "text-blue-500"
+  },
+  {
+    icon: CheckSquare,
+    name: "Solibri",
+    description: "BIM kwaliteitscontrole en model checking",
+    color: "text-orange-600"
+  },
+  {
+    icon: PenTool,
+    name: "AutoCAD",
+    description: "2D/3D CAD tekeningen en technische plannen",
+    color: "text-red-500"
+  },
+  {
+    icon: FileText,
+    name: "Bluebeam Revu",
+    description: "PDF markup en digitale samenwerking",
+    color: "text-blue-700"
+  },
+  {
+    icon: Calculator,
+    name: "AFAS",
+    description: "ERP systeem voor financiën en personeelszaken",
+    color: "text-green-700"
   }
 ];
 

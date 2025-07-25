@@ -2,9 +2,13 @@ import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, Clock, AlertTriangle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter } from "lucide-react";
 
 const Dashboard = () => {
+  // Mock data for integrated tools - in real app this would come from localStorage or API
+  const integratedTools = ["MS Project", "Autodesk Revit", "AutoCAD", "Exact"];
+  
   const mockData = {
     activeProjects: 12,
     totalBudget: 2840000,
@@ -13,6 +17,8 @@ const Dashboard = () => {
     teamMembers: 45,
     overdueItems: 3
   };
+
+  const currentProject = "Wooncomplex Amstelveen";
 
   const recentProjects = [
     { name: "Wooncomplex Amstelveen", progress: 85, budget: 850000, status: "on-track" },
@@ -42,12 +48,25 @@ const Dashboard = () => {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-construction-primary mb-4">
-            Dashboard
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Realtime overzicht van al je projecten en KPI's
-          </p>
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-4xl font-bold text-construction-primary mb-4">
+                Dashboard
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Realtime overzicht van {currentProject}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <select className="px-3 py-2 border rounded-md bg-background">
+                <option>{currentProject}</option>
+                <option>Kantoorgebouw Rotterdam</option>
+                <option>Renovatie School Utrecht</option>
+                <option>Sporthal Eindhoven</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* KPI Cards */}
@@ -103,38 +122,339 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Project Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Projectoverzicht</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentProjects.map((project, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{project.name}</h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex-1">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Voortgang</span>
-                          <span>{project.progress}%</span>
+        {/* Tool-specific Dashboard Tabs */}
+        <Tabs defaultValue="planning" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="planning" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Planning
+            </TabsTrigger>
+            <TabsTrigger value="models" className="flex items-center gap-2">
+              <Box className="h-4 w-4" />
+              Modellen
+            </TabsTrigger>
+            <TabsTrigger value="drawings" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Tekeningen
+            </TabsTrigger>
+            <TabsTrigger value="costs" className="flex items-center gap-2">
+              <Euro className="h-4 w-4" />
+              Kosten
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Meldingen
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Planning Tab - MS Project & Asta Powerproject */}
+          <TabsContent value="planning" className="space-y-6">
+            {integratedTools.includes("MS Project") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    MS Project - Planning
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <div className="bg-muted/50 rounded-lg p-4 h-64 flex items-center justify-center">
+                        <div className="text-center">
+                          <Calendar className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Gantt Chart - Live Planning</p>
                         </div>
-                        <Progress value={project.progress} className="h-2" />
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Budget: €{(project.budget / 1000).toFixed(0)}k
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Taken & Resources</h4>
+                      <div className="space-y-2">
+                        <div className="p-3 border rounded">
+                          <p className="font-medium text-sm">Fundering storten</p>
+                          <p className="text-xs text-muted-foreground">Team A • Deadline: 15 feb</p>
+                          <Progress value={75} className="mt-2 h-2" />
+                        </div>
+                        <div className="p-3 border rounded">
+                          <p className="font-medium text-sm">Ruwbouw</p>
+                          <p className="text-xs text-muted-foreground">Team B • Deadline: 28 feb</p>
+                          <Progress value={30} className="mt-2 h-2" />
+                        </div>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded p-3">
+                        <p className="text-sm font-medium text-red-800">⚠️ Kritieke pad overschreden</p>
+                        <p className="text-xs text-red-600">2 dagen vertraging verwacht</p>
                       </div>
                     </div>
                   </div>
-                  <Badge className={getStatusColor(project.status)}>
-                    {getStatusText(project.status)}
-                  </Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {integratedTools.includes("Asta Powerproject") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Asta Powerproject - Bouwplanning
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
+                          <span className="text-sm font-medium">Fundering</span>
+                          <div className="w-32 bg-blue-200 rounded-full h-2">
+                            <div className="bg-blue-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                          </div>
+                          <span className="text-sm text-blue-700">85%</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-orange-50 rounded">
+                          <span className="text-sm font-medium">Ruwbouw</span>
+                          <div className="w-32 bg-orange-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{width: '45%'}}></div>
+                          </div>
+                          <span className="text-sm text-orange-700">45%</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                          <span className="text-sm font-medium">Afbouw</span>
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div className="bg-gray-600 h-2 rounded-full" style={{width: '0%'}}></div>
+                          </div>
+                          <span className="text-sm text-gray-700">0%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="p-3 bg-blue-50 rounded">
+                        <p className="text-sm font-medium">🌤️ Weer vandaag</p>
+                        <p className="text-xs">Droog, 15°C - Goed voor beton</p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded">
+                        <p className="text-sm font-medium">📦 Leveringen</p>
+                        <p className="text-xs">Staal: 14 feb (op tijd)</p>
+                      </div>
+                      <div className="p-3 bg-yellow-50 rounded">
+                        <p className="text-sm font-medium">⚠️ Risico</p>
+                        <p className="text-xs">Kraanpad mogelijk te smal</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Models Tab - Autodesk Revit */}
+          <TabsContent value="models" className="space-y-6">
+            {integratedTools.includes("Autodesk Revit") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Box className="h-5 w-5" />
+                    Autodesk Revit - BIM Model
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <div className="bg-muted/50 rounded-lg p-8 h-80 flex items-center justify-center border-2 border-dashed">
+                        <div className="text-center">
+                          <Box className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-lg font-medium mb-2">3D BIM Viewer</p>
+                          <p className="text-sm text-muted-foreground">Klik op objecten voor eigenschappen</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Object Eigenschappen</h4>
+                      <div className="p-3 border rounded">
+                        <p className="font-medium text-sm">Draagbalk B-12</p>
+                        <p className="text-xs text-muted-foreground">Materiaal: Staal S355</p>
+                        <p className="text-xs text-muted-foreground">Leverancier: SteelCorp</p>
+                        <Badge className="mt-2" variant="secondary">Geplaatst</Badge>
+                      </div>
+                      <h4 className="font-semibold">Recente Wijzigingen</h4>
+                      <div className="space-y-2">
+                        <div className="text-xs p-2 bg-blue-50 rounded">
+                          <p className="font-medium">Wand W-45 toegevoegd</p>
+                          <p className="text-muted-foreground">2 uur geleden</p>
+                        </div>
+                        <div className="text-xs p-2 bg-red-50 rounded">
+                          <p className="font-medium">Clash gedetecteerd</p>
+                          <p className="text-muted-foreground">Pijp vs. Balk niveau 2</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Drawings Tab - AutoCAD & Bluebeam */}
+          <TabsContent value="drawings" className="space-y-6">
+            {integratedTools.includes("AutoCAD") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Tekeningen & Documenten
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Per Discipline</h4>
+                      <div className="space-y-2">
+                        <button className="w-full text-left p-3 bg-blue-50 rounded hover:bg-blue-100">
+                          <p className="font-medium text-sm">🏗️ Bouwkundig (8)</p>
+                        </button>
+                        <button className="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
+                          <p className="font-medium text-sm">⚡ Elektra (12)</p>
+                        </button>
+                        <button className="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
+                          <p className="font-medium text-sm">🚰 W&R (6)</p>
+                        </button>
+                      </div>
+                      <div className="p-3 bg-green-50 border border-green-200 rounded">
+                        <p className="text-sm font-medium text-green-800">📄 Nieuwe revisie</p>
+                        <p className="text-xs text-green-600">Plattegrond BG beschikbaar</p>
+                      </div>
+                    </div>
+                    <div className="lg:col-span-3">
+                      <div className="bg-muted/50 rounded-lg p-8 h-64 flex items-center justify-center border-2 border-dashed">
+                        <div className="text-center">
+                          <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                          <p className="font-medium mb-2">Document Viewer</p>
+                          <p className="text-sm text-muted-foreground">Zoom, annotatie en markeertools</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Badge variant="outline">Revisie 3.2</Badge>
+                        <Badge variant="outline">Goedgekeurd</Badge>
+                        <Badge variant="outline">5 opmerkingen</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Costs Tab - Exact/AFAS */}
+          <TabsContent value="costs" className="space-y-6">
+            {integratedTools.includes("Exact") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Euro className="h-5 w-5" />
+                    Projectadministratie
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Budget vs. Realisatie</h4>
+                      <div className="bg-muted/50 rounded-lg p-6 h-48 flex items-center justify-center">
+                        <div className="text-center">
+                          <TrendingUp className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">Financiële grafiek</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-green-50 rounded">
+                          <p className="text-sm font-medium">Budget</p>
+                          <p className="text-lg font-bold text-green-700">€850.000</p>
+                        </div>
+                        <div className="p-3 bg-blue-50 rounded">
+                          <p className="text-sm font-medium">Gerealiseerd</p>
+                          <p className="text-lg font-bold text-blue-700">€723.500</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-semibold">Recente Transacties</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center p-3 border rounded">
+                          <div>
+                            <p className="font-medium text-sm">Betonleverantie</p>
+                            <p className="text-xs text-muted-foreground">Factuur #2024-0156</p>
+                          </div>
+                          <p className="font-medium">€15.750</p>
+                        </div>
+                        <div className="flex justify-between items-center p-3 border rounded">
+                          <div>
+                            <p className="font-medium text-sm">Kraanverhuur</p>
+                            <p className="text-xs text-muted-foreground">Week 7-8</p>
+                          </div>
+                          <p className="font-medium">€8.400</p>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm font-medium text-red-800">💰 Meerwerk niet geboekt</p>
+                        <p className="text-xs text-red-600">Extra isolatiewerk €3.200</p>
+                      </div>
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-sm font-medium text-yellow-800">📋 Factuur onvolledig</p>
+                        <p className="text-xs text-yellow-600">BTW-nummer ontbreekt</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Alle Meldingen
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-red-800">Kritieke vertraging planning</p>
+                      <p className="text-sm text-red-600">MS Project: Kritieke pad overschreden - 2 dagen vertraging</p>
+                      <p className="text-xs text-red-500 mt-1">5 minuten geleden</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-yellow-800">Clash gedetecteerd</p>
+                      <p className="text-sm text-yellow-600">Revit: Pijp vs. Balk conflict op niveau 2</p>
+                      <p className="text-xs text-yellow-500 mt-1">2 uur geleden</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-800">Nieuwe tekening beschikbaar</p>
+                      <p className="text-sm text-blue-600">AutoCAD: Plattegrond BG revisie 3.2 goedgekeurd</p>
+                      <p className="text-xs text-blue-500 mt-1">4 uur geleden</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <Euro className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-green-800">Budget status update</p>
+                      <p className="text-sm text-green-600">Exact: 85% budget gerealiseerd - binnen planning</p>
+                      <p className="text-xs text-green-500 mt-1">1 dag geleden</p>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

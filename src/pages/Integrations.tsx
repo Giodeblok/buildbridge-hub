@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
+const ASTA_TOKEN_KEY = "asta_token";
 const REVIT_TOKEN_KEY = "revit_token";
 const EXCEL_TOKEN_KEY = "excel_token";
 const WHATSAPP_TOKEN_KEY = "whatsapp_token";
@@ -16,6 +17,7 @@ const Integrations = () => {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [msConnected, setMsConnected] = useState(false);
   const [autocadConnected, setAutocadConnected] = useState(false);
+  const [astaConnected, setAstaConnected] = useState(false);
   const [revitConnected, setRevitConnected] = useState(false);
   const [excelConnected, setExcelConnected] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -44,6 +46,7 @@ const Integrations = () => {
     loadUserTools();
     setMsConnected(!!localStorage.getItem(MS_TOKEN_KEY));
     setAutocadConnected(!!localStorage.getItem(AUTOCAD_TOKEN_KEY));
+    setAstaConnected(!!localStorage.getItem(ASTA_TOKEN_KEY));
     setRevitConnected(!!localStorage.getItem(REVIT_TOKEN_KEY));
     setExcelConnected(!!localStorage.getItem(EXCEL_TOKEN_KEY));
     setWhatsappConnected(!!localStorage.getItem(WHATSAPP_TOKEN_KEY));
@@ -86,6 +89,26 @@ const Integrations = () => {
               accessToken: event.data.autocad_token,
               refreshToken: event.data.autocad_refresh_token || null,
               expiresIn: event.data.autocad_expires_in || 3600
+            })
+          });
+        }
+      }
+      if (event.data && event.data.asta_token) {
+        localStorage.setItem(ASTA_TOKEN_KEY, event.data.asta_token);
+        setAstaConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'asta',
+              accessToken: event.data.asta_token,
+              refreshToken: event.data.asta_refresh_token || null,
+              expiresIn: event.data.asta_expires_in || 3600
             })
           });
         }
@@ -160,6 +183,9 @@ const Integrations = () => {
   };
   const handleAutocadConnect = () => {
     window.open("http://localhost:4000/autocad/auth", "_blank", "width=500,height=700");
+  };
+  const handleAstaConnect = () => {
+    window.open("http://localhost:4000/asta/auth", "_blank", "width=500,height=700");
   };
   const handleRevitConnect = () => {
     window.open("http://localhost:4000/revit/auth", "_blank", "width=500,height=700");
@@ -267,6 +293,19 @@ const Integrations = () => {
             ) : (
               <Button onClick={handleAutocadConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
                 Koppel AutoCAD
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Asta Powerproject koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('asta') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">Asta Powerproject koppeling</h2>
+            {astaConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleAstaConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel Asta Powerproject
               </Button>
             )}
           </div>

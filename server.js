@@ -466,6 +466,163 @@ app.get('/autocad/files/:fileId/preview', async (req, res) => {
   }
 });
 
+// --- Asta Powerproject OAuth ---
+const ASTA_CLIENT_ID = process.env.ASTA_CLIENT_ID || 'your-asta-client-id';
+const ASTA_CLIENT_SECRET = process.env.ASTA_CLIENT_SECRET || 'your-asta-client-secret';
+const ASTA_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/asta/callback` : 'http://localhost:4000/asta/callback';
+const ASTA_AUTH_URL = 'https://login.astapowerproject.com/oauth/authorize';
+const ASTA_TOKEN_URL = 'https://login.astapowerproject.com/oauth/token';
+
+app.get('/asta/auth', (req, res) => {
+  const state = Math.random().toString(36).substring(7);
+  const params = querystring.stringify({
+    client_id: ASTA_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: ASTA_REDIRECT_URI,
+    scope: 'read write',
+    state: state
+  });
+  res.redirect(`${ASTA_AUTH_URL}?${params}`);
+});
+
+app.get('/asta/callback', async (req, res) => {
+  const { code, state } = req.query;
+  if (!code) return res.status(400).send('No authorization code received');
+
+  try {
+    const tokenResponse = await axios.post(ASTA_TOKEN_URL, querystring.stringify({
+      client_id: ASTA_CLIENT_ID,
+      client_secret: ASTA_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: ASTA_REDIRECT_URI
+    }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+    
+    res.send(`
+      <script>
+        window.opener && window.opener.postMessage({ 
+          asta_token: '${access_token}',
+          asta_refresh_token: '${refresh_token}',
+          asta_expires_in: ${expires_in}
+        }, '*');
+        window.close();
+      </script>
+    `);
+  } catch (error) {
+    console.error('Asta OAuth error:', error.response?.data || error.message);
+    res.status(500).send('Asta OAuth authentication failed');
+  }
+});
+
+app.get('/asta/projects', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  console.log('Using mock data for Asta Powerproject projects (API permissions pending)');
+  res.json({
+    projects: [
+      { id: 201, name: 'Wooncomplex Amstelveen - Planning', status: 'on-track', progress: 85 },
+      { id: 202, name: 'Kantoorgebouw Rotterdam - Bouwplanning', status: 'delayed', progress: 55 },
+      { id: 203, name: 'Renovatie School Utrecht - Planning', status: 'ahead', progress: 92 }
+    ]
+  });
+});
+
+app.get('/asta/files', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  console.log('Using mock data for Asta Powerproject files (API permissions pending)');
+  res.json({
+    files: [
+      {
+        id: 'asta-001',
+        name: 'Wooncomplex_Planning.ast',
+        type: 'AST',
+        size: '3.2 MB',
+        lastModified: '2024-02-14T09:15:00Z',
+        status: 'active',
+        project: 'Wooncomplex Amstelveen'
+      },
+      {
+        id: 'asta-002',
+        name: 'Resource_Planning.ast',
+        type: 'AST',
+        size: '1.8 MB',
+        lastModified: '2024-02-13T16:30:00Z',
+        status: 'active',
+        project: 'Wooncomplex Amstelveen'
+      },
+      {
+        id: 'asta-003',
+        name: 'Kantoorgebouw_Planning.ast',
+        type: 'AST',
+        size: '2.1 MB',
+        lastModified: '2024-02-12T11:45:00Z',
+        status: 'active',
+        project: 'Kantoorgebouw Rotterdam'
+      },
+      {
+        id: 'asta-004',
+        name: 'School_Renovatie_Planning.ast',
+        type: 'AST',
+        size: '1.5 MB',
+        lastModified: '2024-02-11T14:20:00Z',
+        status: 'active',
+        project: 'Renovatie School Utrecht'
+      }
+    ]
+  });
+});
+
+app.get('/asta/files/:fileId/download', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const { fileId } = req.params;
+  
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+  if (!fileId) return res.status(400).json({ error: 'No file ID provided' });
+
+  try {
+    console.log(`Downloading Asta Powerproject file: ${fileId}`);
+    
+    // Mock download - in echte implementatie zou dit een echte API call zijn
+    res.json({ 
+      downloadUrl: `https://api.astapowerproject.com/files/${fileId}/download`,
+      message: 'Download URL generated successfully'
+    });
+  } catch (error) {
+    console.error('Error downloading Asta file:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+app.get('/asta/files/:fileId/preview', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const { fileId } = req.params;
+  
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+  if (!fileId) return res.status(400).json({ error: 'No file ID provided' });
+
+  try {
+    console.log(`Getting preview for Asta Powerproject file: ${fileId}`);
+    
+    // Mock preview - in echte implementatie zou dit een echte API call zijn
+    res.json({ 
+      previewUrl: `https://api.astapowerproject.com/files/${fileId}/preview`,
+      message: 'Preview URL generated successfully'
+    });
+  } catch (error) {
+    console.error('Error getting Asta file preview:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get preview' });
+  }
+});
+
 // --- Revit OAuth mock ---
 const REVIT_TOKEN = 'mock-revit-token';
 

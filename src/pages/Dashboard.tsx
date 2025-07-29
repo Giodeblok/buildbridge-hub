@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
+const ASTA_TOKEN_KEY = "asta_token";
 const REVIT_TOKEN_KEY = "revit_token";
 
 interface ToolFile {
@@ -32,14 +33,17 @@ interface IntegratedTool {
 const Dashboard = () => {
   const [msProjects, setMsProjects] = useState<any[]>([]);
   const [autocadProjects, setAutocadProjects] = useState<any[]>([]);
+  const [astaProjects, setAstaProjects] = useState<any[]>([]);
   const [revitProjects, setRevitProjects] = useState<any[]>([]);
   const [realTimeUpdates, setRealTimeUpdates] = useState<any[]>([]);
   const [integratedTools, setIntegratedTools] = useState<IntegratedTool[]>([]);
   const [allFiles, setAllFiles] = useState<ToolFile[]>([]);
   const [autocadFiles, setAutocadFiles] = useState<ToolFile[]>([]);
+  const [astaFiles, setAstaFiles] = useState<ToolFile[]>([]);
   
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+  const astaToken = localStorage.getItem(ASTA_TOKEN_KEY);
   const revitToken = localStorage.getItem(REVIT_TOKEN_KEY);
 
   // Mock bestanden per tool (fallback)
@@ -82,6 +86,26 @@ const Dashboard = () => {
         lastModified: '2024-02-13T14:30:00Z',
         status: 'active',
         tool: 'MS Project'
+      }
+    ],
+    asta: [
+      {
+        id: 'asta-001',
+        name: 'Wooncomplex_Planning.ast',
+        type: 'AST',
+        size: '3.2 MB',
+        lastModified: '2024-02-14T09:15:00Z',
+        status: 'active',
+        tool: 'Asta Powerproject'
+      },
+      {
+        id: 'asta-002',
+        name: 'Resource_Planning.ast',
+        type: 'AST',
+        size: '1.8 MB',
+        lastModified: '2024-02-13T16:30:00Z',
+        status: 'active',
+        tool: 'Asta Powerproject'
       }
     ],
     revit: [
@@ -130,6 +154,16 @@ const Dashboard = () => {
       });
     }
     
+    if (astaToken) {
+      tools.push({
+        name: 'Asta Powerproject',
+        icon: Calendar,
+        token: astaToken,
+        projects: astaProjects,
+        files: astaFiles.length > 0 ? astaFiles : mockFiles.asta || []
+      });
+    }
+    
     if (revitToken) {
       tools.push({
         name: 'Revit',
@@ -142,7 +176,7 @@ const Dashboard = () => {
     
     setIntegratedTools(tools);
     setAllFiles(tools.flatMap(tool => tool.files));
-  }, [autocadToken, msToken, revitToken, autocadProjects, msProjects, revitProjects, autocadFiles]);
+  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles]);
 
   useEffect(() => {
     // Real-time subscription voor project updates
@@ -211,6 +245,34 @@ const Dashboard = () => {
       }
     }
     
+    if (astaToken) {
+      try {
+        // Haal projecten op
+        const projectsRes = await fetch("http://localhost:4000/asta/projects", {
+          headers: { Authorization: `Bearer ${astaToken}` }
+        });
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
+          setAstaProjects(data.projects || []);
+        }
+
+        // Haal bestanden op
+        const filesRes = await fetch("http://localhost:4000/asta/files", {
+          headers: { Authorization: `Bearer ${astaToken}` }
+        });
+        if (filesRes.ok) {
+          const data = await filesRes.json();
+          const filesWithTool = data.files.map((file: any) => ({
+            ...file,
+            tool: 'Asta Powerproject'
+          }));
+          setAstaFiles(filesWithTool);
+        }
+      } catch (error) {
+        console.error('Error loading Asta Powerproject data:', error);
+      }
+    }
+    
     if (revitToken) {
       try {
         const res = await fetch("http://localhost:4000/revit/projects", {
@@ -229,27 +291,45 @@ const Dashboard = () => {
   // Handler functies voor bestanden
   const handleDownloadFile = async (file: ToolFile) => {
     try {
-      const token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
-      if (!token) {
-        alert('Geen AutoCAD token gevonden. Log opnieuw in.');
+      let token, endpoint;
+      
+      if (file.tool === 'AutoCAD') {
+        token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+        endpoint = 'autocad';
+      } else if (file.tool === 'Asta Powerproject') {
+        token = localStorage.getItem(ASTA_TOKEN_KEY);
+        endpoint = 'asta';
+      } else {
+        alert('Tool niet ondersteund voor download');
         return;
       }
 
-      const response = await fetch(`http://localhost:4000/autocad/files/${file.id}/download`, {
+      if (!token) {
+        alert(`Geen ${file.tool} token gevonden. Log opnieuw in.`);
+        return;
+      }
+
+      const response = await fetch(`http://localhost:4000/${endpoint}/files/${file.id}/download`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
-        // Maak een tijdelijke link om het bestand te downloaden
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        if (endpoint === 'autocad') {
+          // AutoCAD: direct download via blob
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          // Asta: redirect naar download URL
+          const data = await response.json();
+          window.open(data.downloadUrl, '_blank');
+        }
       } else {
         alert('Fout bij downloaden van bestand');
       }
@@ -261,13 +341,25 @@ const Dashboard = () => {
 
   const handlePreviewFile = async (file: ToolFile) => {
     try {
-      const token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
-      if (!token) {
-        alert('Geen AutoCAD token gevonden. Log opnieuw in.');
+      let token, endpoint;
+      
+      if (file.tool === 'AutoCAD') {
+        token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+        endpoint = 'autocad';
+      } else if (file.tool === 'Asta Powerproject') {
+        token = localStorage.getItem(ASTA_TOKEN_KEY);
+        endpoint = 'asta';
+      } else {
+        alert('Tool niet ondersteund voor preview');
         return;
       }
 
-      const response = await fetch(`http://localhost:4000/autocad/files/${file.id}/preview`, {
+      if (!token) {
+        alert(`Geen ${file.tool} token gevonden. Log opnieuw in.`);
+        return;
+      }
+
+      const response = await fetch(`http://localhost:4000/${endpoint}/files/${file.id}/preview`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -286,12 +378,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadProjectData();
-  }, [msToken, autocadToken, revitToken]);
+  }, [msToken, autocadToken, astaToken, revitToken]);
 
   // Combineer projecten
   const allProjects = [
     ...((msToken && msProjects.length > 0) ? msProjects : []),
     ...((autocadToken && autocadProjects.length > 0) ? autocadProjects : []),
+    ...((astaToken && astaProjects.length > 0) ? astaProjects : []),
     ...((revitToken && revitProjects.length > 0) ? revitProjects : [])
   ];
 

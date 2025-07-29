@@ -3,22 +3,146 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter } from "lucide-react";
-import { useEffect, useState } from "react";
+import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter, Folder, File, Download, Eye } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
 const REVIT_TOKEN_KEY = "revit_token";
 
+interface ToolFile {
+  id: string;
+  name: string;
+  type: string;
+  size?: string;
+  lastModified: string;
+  status: 'active' | 'archived' | 'draft';
+  tool: string;
+}
+
+interface IntegratedTool {
+  name: string;
+  icon: any;
+  token: string | null;
+  projects: any[];
+  files: ToolFile[];
+}
+
 const Dashboard = () => {
   const [msProjects, setMsProjects] = useState<any[]>([]);
   const [autocadProjects, setAutocadProjects] = useState<any[]>([]);
   const [revitProjects, setRevitProjects] = useState<any[]>([]);
   const [realTimeUpdates, setRealTimeUpdates] = useState<any[]>([]);
+  const [integratedTools, setIntegratedTools] = useState<IntegratedTool[]>([]);
+  const [allFiles, setAllFiles] = useState<ToolFile[]>([]);
+  const [autocadFiles, setAutocadFiles] = useState<ToolFile[]>([]);
+  
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
   const revitToken = localStorage.getItem(REVIT_TOKEN_KEY);
+
+  // Mock bestanden per tool (fallback)
+  const mockFiles: { [key: string]: ToolFile[] } = {
+    autocad: [
+      {
+        id: 'ac-001',
+        name: 'Plattegrond_BG.dwg',
+        type: 'DWG',
+        size: '2.4 MB',
+        lastModified: '2024-02-14T10:30:00Z',
+        status: 'active',
+        tool: 'AutoCAD'
+      },
+      {
+        id: 'ac-002',
+        name: 'Sectie_A-A.dwg',
+        type: 'DWG',
+        size: '1.8 MB',
+        lastModified: '2024-02-13T15:45:00Z',
+        status: 'active',
+        tool: 'AutoCAD'
+      }
+    ],
+    msproject: [
+      {
+        id: 'ms-001',
+        name: 'Wooncomplex_Planning.mpp',
+        type: 'MPP',
+        size: '1.2 MB',
+        lastModified: '2024-02-14T08:15:00Z',
+        status: 'active',
+        tool: 'MS Project'
+      },
+      {
+        id: 'ms-002',
+        name: 'Resource_Planning.mpp',
+        type: 'MPP',
+        size: '0.8 MB',
+        lastModified: '2024-02-13T14:30:00Z',
+        status: 'active',
+        tool: 'MS Project'
+      }
+    ],
+    revit: [
+      {
+        id: 'rv-001',
+        name: 'BIM_Model.rvt',
+        type: 'RVT',
+        size: '45.2 MB',
+        lastModified: '2024-02-14T11:20:00Z',
+        status: 'active',
+        tool: 'Revit'
+      },
+      {
+        id: 'rv-002',
+        name: 'Families_Collectie.rfa',
+        type: 'RFA',
+        size: '12.8 MB',
+        lastModified: '2024-02-13T16:45:00Z',
+        status: 'active',
+        tool: 'Revit'
+      }
+    ]
+  };
+
+  // Detecteer geïntegreerde tools
+  useEffect(() => {
+    const tools: IntegratedTool[] = [];
+    
+    if (autocadToken) {
+      tools.push({
+        name: 'AutoCAD',
+        icon: FileText,
+        token: autocadToken,
+        projects: autocadProjects,
+        files: autocadFiles.length > 0 ? autocadFiles : mockFiles.autocad || []
+      });
+    }
+    
+    if (msToken) {
+      tools.push({
+        name: 'MS Project',
+        icon: Calendar,
+        token: msToken,
+        projects: msProjects,
+        files: mockFiles.msproject
+      });
+    }
+    
+    if (revitToken) {
+      tools.push({
+        name: 'Revit',
+        icon: Box,
+        token: revitToken,
+        projects: revitProjects,
+        files: mockFiles.revit
+      });
+    }
+    
+    setIntegratedTools(tools);
+    setAllFiles(tools.flatMap(tool => tool.files));
+  }, [autocadToken, msToken, revitToken, autocadProjects, msProjects, revitProjects, autocadFiles]);
 
   useEffect(() => {
     // Real-time subscription voor project updates
@@ -61,12 +185,26 @@ const Dashboard = () => {
     
     if (autocadToken) {
       try {
-        const res = await fetch("http://localhost:4000/autocad/projects", {
+        // Haal projecten op
+        const projectsRes = await fetch("http://localhost:4000/autocad/projects", {
           headers: { Authorization: `Bearer ${autocadToken}` }
         });
-        if (res.ok) {
-          const data = await res.json();
+        if (projectsRes.ok) {
+          const data = await projectsRes.json();
           setAutocadProjects(data.projects || []);
+        }
+
+        // Haal bestanden op
+        const filesRes = await fetch("http://localhost:4000/autocad/files", {
+          headers: { Authorization: `Bearer ${autocadToken}` }
+        });
+        if (filesRes.ok) {
+          const data = await filesRes.json();
+          const filesWithTool = data.files.map((file: any) => ({
+            ...file,
+            tool: 'AutoCAD'
+          }));
+          setAutocadFiles(filesWithTool);
         }
       } catch (error) {
         console.error('Error loading AutoCAD data:', error);
@@ -88,6 +226,64 @@ const Dashboard = () => {
     }
   };
 
+  // Handler functies voor bestanden
+  const handleDownloadFile = async (file: ToolFile) => {
+    try {
+      const token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+      if (!token) {
+        alert('Geen AutoCAD token gevonden. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:4000/autocad/files/${file.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // Maak een tijdelijke link om het bestand te downloaden
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Fout bij downloaden van bestand');
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      alert('Fout bij downloaden van bestand');
+    }
+  };
+
+  const handlePreviewFile = async (file: ToolFile) => {
+    try {
+      const token = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+      if (!token) {
+        alert('Geen AutoCAD token gevonden. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:4000/autocad/files/${file.id}/preview`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Open preview in nieuw venster
+        window.open(data.previewUrl, '_blank');
+      } else {
+        alert('Fout bij ophalen van preview');
+      }
+    } catch (error) {
+      console.error('Error getting preview:', error);
+      alert('Fout bij ophalen van preview');
+    }
+  };
+
   useEffect(() => {
     loadProjectData();
   }, [msToken, autocadToken, revitToken]);
@@ -100,8 +296,6 @@ const Dashboard = () => {
   ];
 
   // Mock data for integrated tools - in real app this would come from localStorage or API
-  const integratedTools = ["MS Project", "Autodesk Revit", "AutoCAD", "Exact"];
-  
   const mockData = {
     activeProjects: 12,
     totalBudget: 2840000,
@@ -216,23 +410,19 @@ const Dashboard = () => {
         </div>
 
         {/* Tool-specific Dashboard Tabs */}
-        <Tabs defaultValue="planning" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="planning" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Planning
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <Folder className="h-4 w-4" />
+              Overzicht
             </TabsTrigger>
-            <TabsTrigger value="models" className="flex items-center gap-2">
-              <Box className="h-4 w-4" />
-              Modellen
+            <TabsTrigger value="files" className="flex items-center gap-2">
+              <File className="h-4 w-4" />
+              Bestanden
             </TabsTrigger>
-            <TabsTrigger value="drawings" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Tekeningen
-            </TabsTrigger>
-            <TabsTrigger value="costs" className="flex items-center gap-2">
-              <Euro className="h-4 w-4" />
-              Kosten
+            <TabsTrigger value="projects" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Projecten
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -240,265 +430,170 @@ const Dashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Planning Tab - MS Project & Asta Powerproject */}
-          <TabsContent value="planning" className="space-y-6">
-            {integratedTools.includes("MS Project") && (
+          {/* Overview Tab - Geïntegreerde Tools Overzicht */}
+          <TabsContent value="overview" className="space-y-6">
+            {integratedTools.length === 0 ? (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    MS Project - Planning
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      <div className="bg-muted/50 rounded-lg p-4 h-64 flex items-center justify-center">
-                        <div className="text-center">
-                          <Calendar className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">Gantt Chart - Live Planning</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Taken & Resources</h4>
-                      <div className="space-y-2">
-                        <div className="p-3 border rounded">
-                          <p className="font-medium text-sm">Fundering storten</p>
-                          <p className="text-xs text-muted-foreground">Team A • Deadline: 15 feb</p>
-                          <Progress value={75} className="mt-2 h-2" />
-                        </div>
-                        <div className="p-3 border rounded">
-                          <p className="font-medium text-sm">Ruwbouw</p>
-                          <p className="text-xs text-muted-foreground">Team B • Deadline: 28 feb</p>
-                          <Progress value={30} className="mt-2 h-2" />
-                        </div>
-                      </div>
-                      <div className="bg-red-50 border border-red-200 rounded p-3">
-                        <p className="text-sm font-medium text-red-800">⚠️ Kritieke pad overschreden</p>
-                        <p className="text-xs text-red-600">2 dagen vertraging verwacht</p>
-                      </div>
-                    </div>
-                  </div>
+                <CardContent className="p-8 text-center">
+                  <Folder className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">Geen tools gekoppeld</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Koppel je eerste tool om bestanden en projecten te bekijken
+                  </p>
+                  <a href="/integrations" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Ga naar Integrations
+                  </a>
                 </CardContent>
               </Card>
-            )}
-
-            {integratedTools.includes("Asta Powerproject") && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Asta Powerproject - Bouwplanning
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
-                          <span className="text-sm font-medium">Fundering</span>
-                          <div className="w-32 bg-blue-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full" style={{width: '85%'}}></div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {integratedTools.map((tool) => {
+                  const IconComponent = tool.icon;
+                  return (
+                    <Card key={tool.name} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <IconComponent className="h-5 w-5" />
+                          {tool.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Bestanden</span>
+                            <span className="font-semibold">{tool.files.length}</span>
                           </div>
-                          <span className="text-sm text-blue-700">85%</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-orange-50 rounded">
-                          <span className="text-sm font-medium">Ruwbouw</span>
-                          <div className="w-32 bg-orange-200 rounded-full h-2">
-                            <div className="bg-orange-600 h-2 rounded-full" style={{width: '45%'}}></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Projecten</span>
+                            <span className="font-semibold">{tool.projects.length}</span>
                           </div>
-                          <span className="text-sm text-orange-700">45%</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                          <span className="text-sm font-medium">Afbouw</span>
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
-                            <div className="bg-gray-600 h-2 rounded-full" style={{width: '0%'}}></div>
+                          <div className="pt-2">
+                            <Badge variant="secondary" className="w-full justify-center">
+                              Actief
+                            </Badge>
                           </div>
-                          <span className="text-sm text-gray-700">0%</span>
                         </div>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="p-3 bg-blue-50 rounded">
-                        <p className="text-sm font-medium">🌤️ Weer vandaag</p>
-                        <p className="text-xs">Droog, 15°C - Goed voor beton</p>
-                      </div>
-                      <div className="p-3 bg-green-50 rounded">
-                        <p className="text-sm font-medium">📦 Leveringen</p>
-                        <p className="text-xs">Staal: 14 feb (op tijd)</p>
-                      </div>
-                      <div className="p-3 bg-yellow-50 rounded">
-                        <p className="text-sm font-medium">⚠️ Risico</p>
-                        <p className="text-xs">Kraanpad mogelijk te smal</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </TabsContent>
 
-          {/* Models Tab - Autodesk Revit */}
-          <TabsContent value="models" className="space-y-6">
-            {integratedTools.includes("Autodesk Revit") && (
+          {/* Files Tab - Alle bestanden van geïntegreerde tools */}
+          <TabsContent value="files" className="space-y-6">
+            {allFiles.length === 0 ? (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Box className="h-5 w-5" />
-                    Autodesk Revit - BIM Model
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      <div className="bg-muted/50 rounded-lg p-8 h-80 flex items-center justify-center border-2 border-dashed">
-                        <div className="text-center">
-                          <Box className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                          <p className="text-lg font-medium mb-2">3D BIM Viewer</p>
-                          <p className="text-sm text-muted-foreground">Klik op objecten voor eigenschappen</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Object Eigenschappen</h4>
-                      <div className="p-3 border rounded">
-                        <p className="font-medium text-sm">Draagbalk B-12</p>
-                        <p className="text-xs text-muted-foreground">Materiaal: Staal S355</p>
-                        <p className="text-xs text-muted-foreground">Leverancier: SteelCorp</p>
-                        <Badge className="mt-2" variant="secondary">Geplaatst</Badge>
-                      </div>
-                      <h4 className="font-semibold">Recente Wijzigingen</h4>
-                      <div className="space-y-2">
-                        <div className="text-xs p-2 bg-blue-50 rounded">
-                          <p className="font-medium">Wand W-45 toegevoegd</p>
-                          <p className="text-muted-foreground">2 uur geleden</p>
-                        </div>
-                        <div className="text-xs p-2 bg-red-50 rounded">
-                          <p className="font-medium">Clash gedetecteerd</p>
-                          <p className="text-muted-foreground">Pijp vs. Balk niveau 2</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <CardContent className="p-8 text-center">
+                  <File className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">Geen bestanden gevonden</h3>
+                  <p className="text-muted-foreground">
+                    Koppel tools om bestanden te bekijken
+                  </p>
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
-
-          {/* Drawings Tab - AutoCAD & Bluebeam */}
-          <TabsContent value="drawings" className="space-y-6">
-            {integratedTools.includes("AutoCAD") && (
+            ) : (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Tekeningen & Documenten
+                    <File className="h-5 w-5" />
+                    Alle Bestanden ({allFiles.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Per Discipline</h4>
-                      <div className="space-y-2">
-                        <button className="w-full text-left p-3 bg-blue-50 rounded hover:bg-blue-100">
-                          <p className="font-medium text-sm">🏗️ Bouwkundig (8)</p>
-                        </button>
-                        <button className="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
-                          <p className="font-medium text-sm">⚡ Elektra (12)</p>
-                        </button>
-                        <button className="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
-                          <p className="font-medium text-sm">🚰 W&R (6)</p>
-                        </button>
-                      </div>
-                      <div className="p-3 bg-green-50 border border-green-200 rounded">
-                        <p className="text-sm font-medium text-green-800">📄 Nieuwe revisie</p>
-                        <p className="text-xs text-green-600">Plattegrond BG beschikbaar</p>
-                      </div>
-                    </div>
-                    <div className="lg:col-span-3">
-                      <div className="bg-muted/50 rounded-lg p-8 h-64 flex items-center justify-center border-2 border-dashed">
-                        <div className="text-center">
-                          <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                          <p className="font-medium mb-2">Document Viewer</p>
-                          <p className="text-sm text-muted-foreground">Zoom, annotatie en markeertools</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        <Badge variant="outline">Revisie 3.2</Badge>
-                        <Badge variant="outline">Goedgekeurd</Badge>
-                        <Badge variant="outline">5 opmerkingen</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Costs Tab - Exact/AFAS */}
-          <TabsContent value="costs" className="space-y-6">
-            {integratedTools.includes("Exact") && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Euro className="h-5 w-5" />
-                    Projectadministratie
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Budget vs. Realisatie</h4>
-                      <div className="bg-muted/50 rounded-lg p-6 h-48 flex items-center justify-center">
-                        <div className="text-center">
-                          <TrendingUp className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">Financiële grafiek</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-green-50 rounded">
-                          <p className="text-sm font-medium">Budget</p>
-                          <p className="text-lg font-bold text-green-700">€850.000</p>
-                        </div>
-                        <div className="p-3 bg-blue-50 rounded">
-                          <p className="text-sm font-medium">Gerealiseerd</p>
-                          <p className="text-lg font-bold text-blue-700">€723.500</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Recente Transacties</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center p-3 border rounded">
+                  <div className="space-y-4">
+                    {allFiles.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-100 rounded">
+                            <File className="h-4 w-4 text-blue-600" />
+                          </div>
                           <div>
-                            <p className="font-medium text-sm">Betonleverantie</p>
-                            <p className="text-xs text-muted-foreground">Factuur #2024-0156</p>
+                            <p className="font-medium">{file.name}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>{file.tool}</span>
+                              <span>{file.type}</span>
+                              {file.size && <span>{file.size}</span>}
+                              <span>{new Date(file.lastModified).toLocaleDateString('nl-NL')}</span>
+                            </div>
                           </div>
-                          <p className="font-medium">€15.750</p>
                         </div>
-                        <div className="flex justify-between items-center p-3 border rounded">
-                          <div>
-                            <p className="font-medium text-sm">Kraanverhuur</p>
-                            <p className="text-xs text-muted-foreground">Week 7-8</p>
-                          </div>
-                          <p className="font-medium">€8.400</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={file.status === 'active' ? 'default' : 'secondary'}>
+                            {file.status === 'active' ? 'Actief' : 'Archief'}
+                          </Badge>
+                          <button 
+                            className="p-2 hover:bg-muted rounded"
+                            onClick={() => handlePreviewFile(file)}
+                            title="Bekijk preview"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="p-2 hover:bg-muted rounded"
+                            onClick={() => handleDownloadFile(file)}
+                            title="Download bestand"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="p-3 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm font-medium text-red-800">💰 Meerwerk niet geboekt</p>
-                        <p className="text-xs text-red-600">Extra isolatiewerk €3.200</p>
-                      </div>
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <p className="text-sm font-medium text-yellow-800">📋 Factuur onvolledig</p>
-                        <p className="text-xs text-yellow-600">BTW-nummer ontbreekt</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
+
+          {/* Projects Tab - Alle projecten van geïntegreerde tools */}
+          <TabsContent value="projects" className="space-y-6">
+            {allProjects.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">Geen projecten gevonden</h3>
+                  <p className="text-muted-foreground">
+                    Koppel tools om projecten te bekijken
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allProjects.map((project) => (
+                  <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{project.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm text-muted-foreground">Voortgang</span>
+                            <span className="text-sm font-medium">{project.progress}%</span>
+                          </div>
+                          <Progress value={project.progress} className="h-2" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Badge 
+                            variant={project.status === 'ahead' ? 'default' : project.status === 'delayed' ? 'destructive' : 'secondary'}
+                            className={getStatusColor(project.status)}
+                          >
+                            {getStatusText(project.status)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            ID: {project.id}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
@@ -506,44 +601,48 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5" />
-                  Alle Meldingen
+                  Tool Meldingen ({integratedTools.length > 0 ? 'Actief' : 'Geen tools gekoppeld'})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-red-800">Kritieke vertraging planning</p>
-                      <p className="text-sm text-red-600">MS Project: Kritieke pad overschreden - 2 dagen vertraging</p>
-                      <p className="text-xs text-red-500 mt-1">5 minuten geleden</p>
-                    </div>
+                {integratedTools.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">Koppel tools om meldingen te ontvangen</p>
                   </div>
-                  <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-yellow-800">Clash gedetecteerd</p>
-                      <p className="text-sm text-yellow-600">Revit: Pijp vs. Balk conflict op niveau 2</p>
-                      <p className="text-xs text-yellow-500 mt-1">2 uur geleden</p>
-                    </div>
+                ) : (
+                  <div className="space-y-3">
+                    {integratedTools.map((tool) => (
+                      <div key={tool.name} className="p-4 border rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          {React.createElement(tool.icon, { className: "h-4 w-4" })}
+                          <h4 className="font-medium">{tool.name}</h4>
+                          <Badge variant="secondary">{tool.files.length} bestanden</Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                            <FileText className="h-4 w-4 text-blue-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-blue-800">Nieuwe bestanden beschikbaar</p>
+                              <p className="text-sm text-blue-600">{tool.files.length} bestanden geladen</p>
+                              <p className="text-xs text-blue-500 mt-1">Vandaag</p>
+                            </div>
+                          </div>
+                          {tool.projects.length > 0 && (
+                            <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded">
+                              <TrendingUp className="h-4 w-4 text-green-600 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-green-800">Projecten geladen</p>
+                                <p className="text-sm text-green-600">{tool.projects.length} projecten beschikbaar</p>
+                                <p className="text-xs text-green-500 mt-1">Vandaag</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-blue-800">Nieuwe tekening beschikbaar</p>
-                      <p className="text-sm text-blue-600">AutoCAD: Plattegrond BG revisie 3.2 goedgekeurd</p>
-                      <p className="text-xs text-blue-500 mt-1">4 uur geleden</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <Euro className="h-5 w-5 text-green-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-green-800">Budget status update</p>
-                      <p className="text-sm text-green-600">Exact: 85% budget gerealiseerd - binnen planning</p>
-                      <p className="text-xs text-green-500 mt-1">1 dag geleden</p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

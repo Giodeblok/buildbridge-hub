@@ -243,9 +243,9 @@ app.get('/autocad/projects', async (req, res) => {
   console.log('Using mock data for AutoCAD projects (API permissions pending)');
   res.json({
     projects: [
-      { id: 101, name: 'AutoCAD Project A', status: 'on-track', progress: 60 },
-      { id: 102, name: 'AutoCAD Project B', status: 'delayed', progress: 30 },
-      { id: 103, name: 'AutoCAD Project C', status: 'ahead', progress: 85 }
+      { id: 101, name: 'Wooncomplex Amstelveen - Bouwkundig', status: 'on-track', progress: 75 },
+      { id: 102, name: 'Kantoorgebouw Rotterdam - Installaties', status: 'delayed', progress: 45 },
+      { id: 103, name: 'Renovatie School Utrecht - Constructie', status: 'ahead', progress: 90 }
     ]
   });
 
@@ -272,6 +272,198 @@ app.get('/autocad/projects', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch projects from Autodesk API' });
   }
   */
+});
+
+// Nieuwe endpoint voor AutoCAD bestanden
+app.get('/autocad/files', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    console.log('Fetching real AutoCAD files from Autodesk Forge API...');
+    
+    // Eerst haal buckets op (projecten/werkruimtes)
+    const bucketsResponse = await axios.get('https://developer.api.autodesk.com/oss/v2/buckets', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const buckets = bucketsResponse.data.items || [];
+    console.log(`Found ${buckets.length} buckets`);
+
+    let allFiles = [];
+
+    // Voor elke bucket, haal bestanden op
+    for (const bucket of buckets) {
+      try {
+        const objectsResponse = await axios.get(`https://developer.api.autodesk.com/oss/v2/buckets/${bucket.bucketKey}/objects`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const bucketFiles = objectsResponse.data.items || [];
+        console.log(`Found ${bucketFiles.length} files in bucket ${bucket.bucketKey}`);
+
+        // Filter alleen AutoCAD bestanden
+        const autocadFiles = bucketFiles.filter(file => {
+          const extension = file.objectKey.split('.').pop()?.toLowerCase();
+          return ['dwg', 'dxf', 'dwl', 'dwl2'].includes(extension);
+        });
+
+        // Converteer naar ons formaat
+        const convertedFiles = autocadFiles.map(file => ({
+          id: file.objectId,
+          name: file.objectKey,
+          type: file.objectKey.split('.').pop()?.toUpperCase() || 'DWG',
+          size: formatFileSize(file.size),
+          lastModified: file.location,
+          status: 'active',
+          project: bucket.bucketKey,
+          location: file.location,
+          etag: file.etag
+        }));
+
+        allFiles = [...allFiles, ...convertedFiles];
+      } catch (bucketError) {
+        console.error(`Error fetching files from bucket ${bucket.bucketKey}:`, bucketError.message);
+        // Ga door met volgende bucket
+      }
+    }
+
+    // Als geen echte bestanden gevonden, gebruik mock data
+    if (allFiles.length === 0) {
+      console.log('No real files found, using mock data');
+      allFiles = [
+        {
+          id: 'ac-001',
+          name: 'Plattegrond_BG.dwg',
+          type: 'DWG',
+          size: '2.4 MB',
+          lastModified: '2024-02-14T10:30:00Z',
+          status: 'active',
+          project: 'Wooncomplex Amstelveen'
+        },
+        {
+          id: 'ac-002',
+          name: 'Sectie_A-A.dwg',
+          type: 'DWG',
+          size: '1.8 MB',
+          lastModified: '2024-02-13T15:45:00Z',
+          status: 'active',
+          project: 'Wooncomplex Amstelveen'
+        },
+        {
+          id: 'ac-003',
+          name: 'Details_Fundering.dwg',
+          type: 'DWG',
+          size: '3.1 MB',
+          lastModified: '2024-02-12T09:20:00Z',
+          status: 'active',
+          project: 'Wooncomplex Amstelveen'
+        }
+      ];
+    }
+
+    res.json({ files: allFiles });
+  } catch (error) {
+    console.error('Error fetching AutoCAD files:', error.response?.data || error.message);
+    
+    // Fallback naar mock data bij error
+    res.json({
+      files: [
+        {
+          id: 'ac-001',
+          name: 'Plattegrond_BG.dwg',
+          type: 'DWG',
+          size: '2.4 MB',
+          lastModified: '2024-02-14T10:30:00Z',
+          status: 'active',
+          project: 'Wooncomplex Amstelveen'
+        },
+        {
+          id: 'ac-002',
+          name: 'Sectie_A-A.dwg',
+          type: 'DWG',
+          size: '1.8 MB',
+          lastModified: '2024-02-13T15:45:00Z',
+          status: 'active',
+          project: 'Wooncomplex Amstelveen'
+        }
+      ]
+    });
+  }
+});
+
+// Helper functie om bestandsgrootte te formatteren
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B';
+  
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+// Endpoint om AutoCAD bestand te downloaden
+app.get('/autocad/files/:fileId/download', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const { fileId } = req.params;
+  
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+  if (!fileId) return res.status(400).json({ error: 'No file ID provided' });
+
+  try {
+    console.log(`Downloading AutoCAD file: ${fileId}`);
+    
+    // Haal download URL op voor het bestand
+    const signedUrlResponse = await axios.get(`https://developer.api.autodesk.com/oss/v2/buckets/${fileId}/objects/${fileId}/signeds3download`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const downloadUrl = signedUrlResponse.data.signedUrl;
+    
+    // Redirect naar de download URL
+    res.redirect(downloadUrl);
+  } catch (error) {
+    console.error('Error downloading AutoCAD file:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+// Endpoint om AutoCAD bestand preview te bekijken
+app.get('/autocad/files/:fileId/preview', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  const { fileId } = req.params;
+  
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+  if (!fileId) return res.status(400).json({ error: 'No file ID provided' });
+
+  try {
+    console.log(`Getting preview for AutoCAD file: ${fileId}`);
+    
+    // Haal preview URL op voor het bestand
+    const previewResponse = await axios.get(`https://developer.api.autodesk.com/modelderivative/v2/designdata/${fileId}/thumbnail`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        width: 800,
+        height: 600
+      }
+    });
+
+    res.json({ previewUrl: previewResponse.data });
+  } catch (error) {
+    console.error('Error getting AutoCAD file preview:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get preview' });
+  }
 });
 
 // --- Revit OAuth mock ---

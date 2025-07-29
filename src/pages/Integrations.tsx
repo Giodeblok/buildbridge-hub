@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, Settings } from "lucide-react";
+import { CheckCircle, AlertCircle, Settings, Plus, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
@@ -13,6 +13,20 @@ const REVIT_TOKEN_KEY = "revit_token";
 const EXCEL_TOKEN_KEY = "excel_token";
 const WHATSAPP_TOKEN_KEY = "whatsapp_token";
 
+// Beschikbare tools voor toevoeging
+const availableTools = [
+  { id: "excel", name: "Excel", description: "Spreadsheets en calculaties", icon: "📊" },
+  { id: "msproject", name: "MS Project", description: "Projectplanning en tijdlijnen", icon: "📅" },
+  { id: "exact", name: "Exact", description: "Financiële administratie", icon: "💰" },
+  { id: "whatsapp", name: "WhatsApp", description: "Communicatie en berichten", icon: "💬" },
+  { id: "asta", name: "Asta Powerproject", description: "Geavanceerde projectplanning", icon: "📋" },
+  { id: "revit", name: "Autodesk Revit", description: "BIM modeling en 3D ontwerp", icon: "🏗️" },
+  { id: "solibri", name: "Solibri", description: "BIM kwaliteitscontrole", icon: "✅" },
+  { id: "autocad", name: "AutoCAD", description: "2D/3D CAD tekeningen", icon: "✏️" },
+  { id: "bluebeam", name: "Bluebeam Revu", description: "PDF markup en samenwerking", icon: "📄" },
+  { id: "afas", name: "AFAS", description: "ERP systeem", icon: "🏢" },
+];
+
 const Integrations = () => {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [msConnected, setMsConnected] = useState(false);
@@ -21,6 +35,7 @@ const Integrations = () => {
   const [revitConnected, setRevitConnected] = useState(false);
   const [excelConnected, setExcelConnected] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [showAddMore, setShowAddMore] = useState(false);
 
   useEffect(() => {
     const loadUserTools = async () => {
@@ -197,6 +212,43 @@ const Integrations = () => {
     window.open("http://localhost:4000/whatsapp/auth", "_blank", "width=500,height=700");
   };
 
+  // Functie om tool toe te voegen
+  const handleAddTool = async (toolId: string) => {
+    if (!selectedTools.includes(toolId)) {
+      const newSelectedTools = [...selectedTools, toolId];
+      setSelectedTools(newSelectedTools);
+      localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+      
+      // Sla op in database
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('user_tools')
+          .insert({
+            user_id: user.id,
+            tool_id: toolId
+          });
+      }
+    }
+  };
+
+  // Functie om tool te verwijderen
+  const handleRemoveTool = async (toolId: string) => {
+    const newSelectedTools = selectedTools.filter(id => id !== toolId);
+    setSelectedTools(newSelectedTools);
+    localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+    
+    // Verwijder uit database
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('user_tools')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('tool_id', toolId);
+    }
+  };
+
   const integrationStatus = selectedTools.map(toolId => ({
     id: toolId,
     name: toolId.charAt(0).toUpperCase() + toolId.slice(1),
@@ -209,13 +261,22 @@ const Integrations = () => {
     <div className="min-h-screen bg-gradient-subtle">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-construction-primary mb-4">
-            Mijn Integraties
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Overzicht van al je gekoppelde tools en hun status
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold text-construction-primary mb-4">
+              Mijn Integraties
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Overzicht van al je gekoppelde tools en hun status
+            </p>
+          </div>
+          <Button 
+            onClick={() => setShowAddMore(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Meer toevoegen
+          </Button>
         </div>
 
         {selectedTools.length === 0 ? (
@@ -223,11 +284,17 @@ const Integrations = () => {
             <CardContent>
               <h3 className="text-xl font-semibold mb-4">Geen tools geselecteerd</h3>
               <p className="text-muted-foreground mb-6">
-                Ga naar tool selectie om je eerste integraties in te stellen.
+                Voeg je eerste integraties toe om te beginnen.
               </p>
-              <Button onClick={() => window.location.href = '/tool-selection'}>
-                Tools selecteren
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={() => setShowAddMore(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tools toevoegen
+                </Button>
+                <Button variant="outline" onClick={() => window.location.href = '/tool-selection'}>
+                  Volledige selectie
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -265,6 +332,14 @@ const Integrations = () => {
                         Opnieuw verbinden
                       </Button>
                     )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-red-600 hover:text-red-700"
+                      onClick={() => handleRemoveTool(integration.id)}
+                    >
+                      Verwijderen
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -347,6 +422,66 @@ const Integrations = () => {
                 Koppel WhatsApp
               </Button>
             )}
+          </div>
+        )}
+
+        {/* Meer toevoegen Modal */}
+        {showAddMore && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Tools toevoegen</h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowAddMore(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availableTools.map((tool) => {
+                  const isSelected = selectedTools.includes(tool.id);
+                  return (
+                    <Card 
+                      key={tool.id} 
+                      className={`cursor-pointer transition-all hover:shadow-lg ${
+                        isSelected ? 'ring-2 ring-construction-primary bg-construction-primary/5' : ''
+                      }`}
+                      onClick={() => isSelected ? handleRemoveTool(tool.id) : handleAddTool(tool.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{tool.icon}</span>
+                          <div className="flex-1">
+                            <h3 className="font-semibold">{tool.name}</h3>
+                            <p className="text-sm text-muted-foreground">{tool.description}</p>
+                          </div>
+                          <Badge variant={isSelected ? 'default' : 'secondary'}>
+                            {isSelected ? 'Toegevoegd' : 'Toevoegen'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowAddMore(false)}
+                >
+                  Sluiten
+                </Button>
+                <Button 
+                  onClick={() => window.location.href = '/tool-selection'}
+                >
+                  Volledige tool selectie
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

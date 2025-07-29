@@ -4,8 +4,51 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter } from "lucide-react";
+import { useEffect, useState } from "react";
+
+const MS_TOKEN_KEY = "msproject_token";
+const AUTOCAD_TOKEN_KEY = "autocad_token";
+const REVIT_TOKEN_KEY = "revit_token";
 
 const Dashboard = () => {
+  const [msProjects, setMsProjects] = useState<any[]>([]);
+  const [autocadProjects, setAutocadProjects] = useState<any[]>([]);
+  const [revitProjects, setRevitProjects] = useState<any[]>([]);
+  const msToken = localStorage.getItem(MS_TOKEN_KEY);
+  const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
+  const revitToken = localStorage.getItem(REVIT_TOKEN_KEY);
+
+  useEffect(() => {
+    if (msToken) {
+      fetch("http://localhost:4000/msproject/projects", {
+        headers: { Authorization: `Bearer ${msToken}` }
+      })
+        .then(res => res.json())
+        .then(data => setMsProjects(data.projects || []));
+    }
+    if (autocadToken) {
+      fetch("http://localhost:4000/autocad/projects", {
+        headers: { Authorization: `Bearer ${autocadToken}` }
+      })
+        .then(res => res.json())
+        .then(data => setAutocadProjects(data.projects || []));
+    }
+    if (revitToken) {
+      fetch("http://localhost:4000/revit/projects", {
+        headers: { Authorization: `Bearer ${revitToken}` }
+      })
+        .then(res => res.json())
+        .then(data => setRevitProjects(data.projects || []));
+    }
+  }, [msToken, autocadToken, revitToken]);
+
+  // Combineer projecten
+  const allProjects = [
+    ...((msToken && msProjects.length > 0) ? msProjects : []),
+    ...((autocadToken && autocadProjects.length > 0) ? autocadProjects : []),
+    ...((revitToken && revitProjects.length > 0) ? revitProjects : [])
+  ];
+
   // Mock data for integrated tools - in real app this would come from localStorage or API
   const integratedTools = ["MS Project", "Autodesk Revit", "AutoCAD", "Exact"];
   
@@ -20,11 +63,11 @@ const Dashboard = () => {
 
   const currentProject = "Wooncomplex Amstelveen";
 
-  const recentProjects = [
-    { name: "Wooncomplex Amstelveen", progress: 85, budget: 850000, status: "on-track" },
-    { name: "Kantoorgebouw Rotterdam", progress: 45, budget: 1200000, status: "delayed" },
-    { name: "Renovatie School Utrecht", progress: 92, budget: 320000, status: "ahead" },
-    { name: "Sporthal Eindhoven", progress: 23, budget: 470000, status: "on-track" }
+  const recentProjects = allProjects.length > 0 ? allProjects : [
+    { name: "Wooncomplex Amstelveen", progress: 85, status: "on-track" },
+    { name: "Kantoorgebouw Rotterdam", progress: 45, status: "delayed" },
+    { name: "Renovatie School Utrecht", progress: 92, status: "ahead" },
+    { name: "Sporthal Eindhoven", progress: 23, status: "on-track" }
   ];
 
   const getStatusColor = (status: string) => {

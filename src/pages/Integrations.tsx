@@ -5,15 +5,58 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, Settings } from "lucide-react";
 
+const MS_TOKEN_KEY = "msproject_token";
+const AUTOCAD_TOKEN_KEY = "autocad_token";
+const REVIT_TOKEN_KEY = "revit_token";
+
 const Integrations = () => {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [msConnected, setMsConnected] = useState(false);
+  const [autocadConnected, setAutocadConnected] = useState(false);
+  const [revitConnected, setRevitConnected] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('selectedTools');
-    if (saved) {
-      setSelectedTools(JSON.parse(saved));
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.id) {
+      fetch(`http://localhost:4000/user/tools?userId=${user.id}`)
+        .then(res => res.json())
+        .then(data => setSelectedTools(data.tools || []));
+    } else {
+      const saved = localStorage.getItem('selectedTools');
+      if (saved) setSelectedTools(JSON.parse(saved));
     }
+    setMsConnected(!!localStorage.getItem(MS_TOKEN_KEY));
+    setAutocadConnected(!!localStorage.getItem(AUTOCAD_TOKEN_KEY));
+    setRevitConnected(!!localStorage.getItem(REVIT_TOKEN_KEY));
+
+    // OAuth token listener
+    const handler = (event: MessageEvent) => {
+      if (event.data && event.data.msproject_token) {
+        localStorage.setItem(MS_TOKEN_KEY, event.data.msproject_token);
+        setMsConnected(true);
+      }
+      if (event.data && event.data.autocad_token) {
+        localStorage.setItem(AUTOCAD_TOKEN_KEY, event.data.autocad_token);
+        setAutocadConnected(true);
+      }
+      if (event.data && event.data.revit_token) {
+        localStorage.setItem(REVIT_TOKEN_KEY, event.data.revit_token);
+        setRevitConnected(true);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
   }, []);
+
+  const handleMsConnect = () => {
+    window.open("http://localhost:4000/msproject/auth", "_blank", "width=500,height=700");
+  };
+  const handleAutocadConnect = () => {
+    window.open("http://localhost:4000/autocad/auth", "_blank", "width=500,height=700");
+  };
+  const handleRevitConnect = () => {
+    window.open("http://localhost:4000/revit/auth", "_blank", "width=500,height=700");
+  };
 
   const integrationStatus = selectedTools.map(toolId => ({
     id: toolId,
@@ -87,6 +130,45 @@ const Integrations = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+        {/* MS Project koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('msproject') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">MS Project koppeling</h2>
+            {msConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleMsConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel MS Project
+              </Button>
+            )}
+          </div>
+        )}
+        {/* AutoCAD koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('autocad') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">AutoCAD koppeling</h2>
+            {autocadConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleAutocadConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel AutoCAD
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Revit koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('revit') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">Revit koppeling</h2>
+            {revitConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleRevitConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel Revit
+              </Button>
+            )}
           </div>
         )}
       </div>

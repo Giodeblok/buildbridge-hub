@@ -11,11 +11,25 @@ interface LoginDialogProps {
 const LoginDialog = ({ children }: LoginDialogProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Login logic here
-    console.log("Login:", { email, password });
+    setError("");
+    try {
+      const res = await fetch("http://localhost:4000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) throw new Error("Ongeldige inloggegevens");
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.location.reload();
+    } catch (err) {
+      setError("Inloggen mislukt. Controleer je gegevens.");
+    }
   };
 
   return (
@@ -52,6 +66,7 @@ const LoginDialog = ({ children }: LoginDialogProps) => {
               required
             />
           </div>
+          {error && <div className="text-red-600 text-sm">{error}</div>}
           <div className="flex flex-col space-y-2">
             <Button type="submit" className="w-full">
               Inloggen

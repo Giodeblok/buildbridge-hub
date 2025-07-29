@@ -34,9 +34,16 @@ const ToolSelection = () => {
     );
   };
 
-  const handleContinue = () => {
-    // Save selected tools to context/localStorage
+  const handleContinue = async () => {
     localStorage.setItem('selectedTools', JSON.stringify(selectedTools));
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.id) {
+      await fetch('http://localhost:4000/user/tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, tools: selectedTools })
+      });
+    }
     navigate('/integraties');
   };
 

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
@@ -14,32 +15,81 @@ const Dashboard = () => {
   const [msProjects, setMsProjects] = useState<any[]>([]);
   const [autocadProjects, setAutocadProjects] = useState<any[]>([]);
   const [revitProjects, setRevitProjects] = useState<any[]>([]);
+  const [realTimeUpdates, setRealTimeUpdates] = useState<any[]>([]);
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
   const revitToken = localStorage.getItem(REVIT_TOKEN_KEY);
 
   useEffect(() => {
+    // Real-time subscription voor project updates
+    const subscription = supabase
+      .channel('project-updates')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'user_tools' }, 
+        (payload) => {
+          console.log('Real-time update:', payload);
+          setRealTimeUpdates(prev => [...prev, payload]);
+          
+          // Refresh project data wanneer tools worden gewijzigd
+          if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            // Herlaad project data
+            loadProjectData();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const loadProjectData = async () => {
     if (msToken) {
-      fetch("http://localhost:4000/msproject/projects", {
-        headers: { Authorization: `Bearer ${msToken}` }
-      })
-        .then(res => res.json())
-        .then(data => setMsProjects(data.projects || []));
+      try {
+        const res = await fetch("http://localhost:4000/msproject/projects", {
+          headers: { Authorization: `Bearer ${msToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMsProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error loading MS Project data:', error);
+      }
     }
+    
     if (autocadToken) {
-      fetch("http://localhost:4000/autocad/projects", {
-        headers: { Authorization: `Bearer ${autocadToken}` }
-      })
-        .then(res => res.json())
-        .then(data => setAutocadProjects(data.projects || []));
+      try {
+        const res = await fetch("http://localhost:4000/autocad/projects", {
+          headers: { Authorization: `Bearer ${autocadToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAutocadProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error loading AutoCAD data:', error);
+      }
     }
+    
     if (revitToken) {
-      fetch("http://localhost:4000/revit/projects", {
-        headers: { Authorization: `Bearer ${revitToken}` }
-      })
-        .then(res => res.json())
-        .then(data => setRevitProjects(data.projects || []));
+      try {
+        const res = await fetch("http://localhost:4000/revit/projects", {
+          headers: { Authorization: `Bearer ${revitToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setRevitProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error loading Revit data:', error);
+      }
     }
+  };
+
+  useEffect(() => {
+    loadProjectData();
   }, [msToken, autocadToken, revitToken]);
 
   // Combineer projecten

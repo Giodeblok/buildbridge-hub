@@ -4,44 +4,151 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, Settings } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
 const REVIT_TOKEN_KEY = "revit_token";
+const EXCEL_TOKEN_KEY = "excel_token";
+const WHATSAPP_TOKEN_KEY = "whatsapp_token";
 
 const Integrations = () => {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [msConnected, setMsConnected] = useState(false);
   const [autocadConnected, setAutocadConnected] = useState(false);
   const [revitConnected, setRevitConnected] = useState(false);
+  const [excelConnected, setExcelConnected] = useState(false);
+  const [whatsappConnected, setWhatsappConnected] = useState(false);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.id) {
-      fetch(`http://localhost:4000/user/tools?userId=${user.id}`)
-        .then(res => res.json())
-        .then(data => setSelectedTools(data.tools || []));
-    } else {
-      const saved = localStorage.getItem('selectedTools');
-      if (saved) setSelectedTools(JSON.parse(saved));
-    }
+    const loadUserTools = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Haal tools op uit Supabase database
+        const { data: toolsData } = await supabase
+          .from('user_tools')
+          .select('tool_id')
+          .eq('user_id', user.id);
+        
+        if (toolsData) {
+          setSelectedTools(toolsData.map(tool => tool.tool_id));
+        }
+      } else {
+        // Fallback naar localStorage voor niet-ingelogde gebruikers
+        const saved = localStorage.getItem('selectedTools');
+        if (saved) setSelectedTools(JSON.parse(saved));
+      }
+    };
+
+    loadUserTools();
     setMsConnected(!!localStorage.getItem(MS_TOKEN_KEY));
     setAutocadConnected(!!localStorage.getItem(AUTOCAD_TOKEN_KEY));
     setRevitConnected(!!localStorage.getItem(REVIT_TOKEN_KEY));
+    setExcelConnected(!!localStorage.getItem(EXCEL_TOKEN_KEY));
+    setWhatsappConnected(!!localStorage.getItem(WHATSAPP_TOKEN_KEY));
 
     // OAuth token listener
-    const handler = (event: MessageEvent) => {
+    const handler = async (event: MessageEvent) => {
       if (event.data && event.data.msproject_token) {
         localStorage.setItem(MS_TOKEN_KEY, event.data.msproject_token);
         setMsConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'msproject',
+              accessToken: event.data.msproject_token,
+              refreshToken: event.data.msproject_refresh_token || null,
+              expiresIn: event.data.msproject_expires_in || 3600
+            })
+          });
+        }
       }
       if (event.data && event.data.autocad_token) {
         localStorage.setItem(AUTOCAD_TOKEN_KEY, event.data.autocad_token);
         setAutocadConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'autocad',
+              accessToken: event.data.autocad_token,
+              refreshToken: event.data.autocad_refresh_token || null,
+              expiresIn: event.data.autocad_expires_in || 3600
+            })
+          });
+        }
       }
       if (event.data && event.data.revit_token) {
         localStorage.setItem(REVIT_TOKEN_KEY, event.data.revit_token);
         setRevitConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'revit',
+              accessToken: event.data.revit_token,
+              refreshToken: event.data.revit_refresh_token || null,
+              expiresIn: event.data.revit_expires_in || 3600
+            })
+          });
+        }
+      }
+      if (event.data && event.data.excel_token) {
+        localStorage.setItem(EXCEL_TOKEN_KEY, event.data.excel_token);
+        setExcelConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'excel',
+              accessToken: event.data.excel_token,
+              refreshToken: event.data.excel_refresh_token || null,
+              expiresIn: event.data.excel_expires_in || 3600
+            })
+          });
+        }
+      }
+      if (event.data && event.data.whatsapp_token) {
+        localStorage.setItem(WHATSAPP_TOKEN_KEY, event.data.whatsapp_token);
+        setWhatsappConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'whatsapp',
+              accessToken: event.data.whatsapp_token,
+              refreshToken: event.data.whatsapp_refresh_token || null,
+              expiresIn: event.data.whatsapp_expires_in || 3600
+            })
+          });
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -56,6 +163,12 @@ const Integrations = () => {
   };
   const handleRevitConnect = () => {
     window.open("http://localhost:4000/revit/auth", "_blank", "width=500,height=700");
+  };
+  const handleExcelConnect = () => {
+    window.open("http://localhost:4000/excel/auth", "_blank", "width=500,height=700");
+  };
+  const handleWhatsappConnect = () => {
+    window.open("http://localhost:4000/whatsapp/auth", "_blank", "width=500,height=700");
   };
 
   const integrationStatus = selectedTools.map(toolId => ({
@@ -167,6 +280,32 @@ const Integrations = () => {
             ) : (
               <Button onClick={handleRevitConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
                 Koppel Revit
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Excel koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('excel') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">Excel koppeling</h2>
+            {excelConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleExcelConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel Excel
+              </Button>
+            )}
+          </div>
+        )}
+        {/* WhatsApp koppeling alleen tonen als geselecteerd */}
+        {selectedTools.includes('whatsapp') && (
+          <div className="my-6">
+            <h2 className="text-xl font-bold mb-2">WhatsApp koppeling</h2>
+            {whatsappConnected ? (
+              <span className="text-green-600">Gekoppeld</span>
+            ) : (
+              <Button onClick={handleWhatsappConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Koppel WhatsApp
               </Button>
             )}
           </div>

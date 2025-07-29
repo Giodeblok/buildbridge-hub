@@ -8,6 +8,7 @@ import {
   FileSpreadsheet, MessageSquare, Calendar, Database, 
   Layers, Box, CheckSquare, PenTool, FileText, Calculator 
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const tools = [
   { id: "excel", name: "Excel", description: "Spreadsheets en calculaties", icon: FileSpreadsheet },
@@ -36,14 +37,30 @@ const ToolSelection = () => {
 
   const handleContinue = async () => {
     localStorage.setItem('selectedTools', JSON.stringify(selectedTools));
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.id) {
-      await fetch('http://localhost:4000/user/tools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, tools: selectedTools })
-      });
+    
+    // Haal huidige gebruiker op
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Verwijder bestaande tools voor deze gebruiker
+      await supabase
+        .from('user_tools')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Voeg nieuwe tools toe
+      if (selectedTools.length > 0) {
+        const toolsToInsert = selectedTools.map(toolId => ({
+          user_id: user.id,
+          tool_id: toolId
+        }));
+        
+        await supabase
+          .from('user_tools')
+          .insert(toolsToInsert);
+      }
     }
+    
     navigate('/integraties');
   };
 

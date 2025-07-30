@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter, Folder, File, Download, Eye } from "lucide-react";
+import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter, Folder, File, Download, Eye, Upload, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
@@ -31,6 +34,7 @@ interface IntegratedTool {
 }
 
 const Dashboard = () => {
+  const { id: projectId } = useParams<{ id: string }>();
   const [msProjects, setMsProjects] = useState<any[]>([]);
   const [autocadProjects, setAutocadProjects] = useState<any[]>([]);
   const [astaProjects, setAstaProjects] = useState<any[]>([]);
@@ -40,6 +44,7 @@ const Dashboard = () => {
   const [allFiles, setAllFiles] = useState<ToolFile[]>([]);
   const [autocadFiles, setAutocadFiles] = useState<ToolFile[]>([]);
   const [astaFiles, setAstaFiles] = useState<ToolFile[]>([]);
+  const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
@@ -376,9 +381,130 @@ const Dashboard = () => {
     }
   };
 
+  // Upload functionaliteit
+  const handleFileUpload = async (toolId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !projectId) return;
+
+    setUploading(prev => ({ ...prev, [toolId]: true }));
+
+    try {
+      const fileName = `${Date.now()}_${file.name}`;
+      const path = `${projectId}/${toolId}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('project-files')
+        .upload(path, file, { upsert: true });
+
+      if (error) {
+        toast.error(`Upload mislukt: ${error.message}`);
+      } else {
+        toast.success(`Bestand ${file.name} succesvol geüpload`);
+        
+        // Voeg bestand toe aan lokale state
+        const newFile: ToolFile = {
+          id: Date.now().toString(),
+          name: file.name,
+          type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
+          size: formatFileSize(file.size),
+          lastModified: new Date().toISOString(),
+          status: 'active',
+          tool: getToolDisplayName(toolId)
+        };
+
+        // Update de juiste tool files
+        switch (toolId) {
+          case 'autocad':
+            setAutocadFiles(prev => [...prev, newFile]);
+            break;
+          case 'msproject':
+            // Update MS Project files
+            break;
+          case 'asta':
+            setAstaFiles(prev => [...prev, newFile]);
+            break;
+          case 'revit':
+            // Update Revit files
+            break;
+        }
+      }
+    } catch (error) {
+      toast.error('Upload mislukt');
+      console.error('Upload error:', error);
+    } finally {
+      setUploading(prev => ({ ...prev, [toolId]: false }));
+      // Reset input
+      event.target.value = '';
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getToolDisplayName = (toolId: string): string => {
+    switch (toolId) {
+      case 'autocad': return 'AutoCAD';
+      case 'msproject': return 'MS Project';
+      case 'asta': return 'Asta Powerproject';
+      case 'revit': return 'Revit';
+      default: return toolId;
+    }
+  };
+
+  // Laad bestanden uit Supabase Storage
+  const loadFilesFromStorage = async () => {
+    if (!projectId) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('project-files')
+        .list(projectId, { limit: 100 });
+
+      if (error) {
+        console.error('Error loading files:', error);
+        return;
+      }
+
+      // Groepeer bestanden per tool
+      const toolFiles: { [key: string]: ToolFile[] } = {};
+      
+      for (const folder of data) {
+        if (folder.name && ['autocad', 'msproject', 'asta', 'revit'].includes(folder.name)) {
+          const { data: files } = await supabase.storage
+            .from('project-files')
+            .list(`${projectId}/${folder.name}`, { limit: 100 });
+
+          if (files) {
+            toolFiles[folder.name] = files.map(file => ({
+              id: file.id || Date.now().toString(),
+              name: file.name,
+              type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
+              size: file.metadata?.size ? formatFileSize(file.metadata.size) : 'Unknown',
+              lastModified: file.updated_at || new Date().toISOString(),
+              status: 'active' as const,
+              tool: getToolDisplayName(folder.name)
+            }));
+          }
+        }
+      }
+
+      // Update state
+      setAutocadFiles(toolFiles.autocad || []);
+      // Update andere tool files hier...
+    } catch (error) {
+      console.error('Error loading files from storage:', error);
+    }
+  };
+
   useEffect(() => {
     loadProjectData();
-  }, [msToken, autocadToken, astaToken, revitToken]);
+    loadFilesFromStorage();
+  }, [projectId]);
 
   // Combineer projecten
   const allProjects = [
@@ -428,28 +554,15 @@ const Dashboard = () => {
       <Header />
       <div className="container mx-auto px-4 py-8 pt-24">
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-construction-primary mb-4">
-                Dashboard
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                Realtime overzicht van {currentProject}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <select className="px-3 py-2 border rounded-md bg-background">
-                <option>{currentProject}</option>
-                <option>Kantoorgebouw Rotterdam</option>
-                <option>Renovatie School Utrecht</option>
-                <option>Sporthal Eindhoven</option>
-              </select>
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold text-construction-primary mb-4">
+            Dashboard
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Realtime overzicht van {projectId ? `Project ${projectId}` : 'Wooncomplex Amstelveen'}
+          </p>
         </div>
-
-        {/* KPI Cards */}
+      
+        {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -502,8 +615,8 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Tool-specific Dashboard Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        {/* Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6 mb-8">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Folder className="h-4 w-4" />
@@ -523,55 +636,121 @@ const Dashboard = () => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Overview Tab - Project overzicht */}
+          <TabsContent value="overview" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Project Overzicht
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold text-blue-900">Project Status</h4>
+                      <p className="text-blue-700">Actief - {mockData.completionRate}% voltooid</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="font-semibold text-green-900">Team</h4>
+                      <p className="text-green-700">{mockData.teamMembers} teamleden actief</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <h4 className="font-semibold text-yellow-900">Openstaande Taken</h4>
+                    <p className="text-yellow-700">{mockData.pendingTasks} taken, waarvan {mockData.overdueItems} over deadline</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Integrated Tools */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {integratedTools.map((tool) => (
+                <Card key={tool.name} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <tool.icon className="h-5 w-5" />
+                      {tool.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Bestanden</span>
+                        <span className="font-semibold">{tool.files.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Projecten</span>
+                        <span className="font-semibold">{tool.projects.length}</span>
+                      </div>
+                      
+                      {/* Upload knop */}
+                      <div className="pt-2">
+                        <input
+                          type="file"
+                          onChange={(e) => handleFileUpload(tool.name.toLowerCase().replace(' ', ''), e)}
+                          style={{ display: 'none' }}
+                          id={`upload-${tool.name}`}
+                          accept=".dwg,.rvt,.mpp,.ast,.xlsx,.pdf"
+                        />
+                        <label htmlFor={`upload-${tool.name}`}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            disabled={uploading[tool.name.toLowerCase().replace(' ', '')]}
+                          >
+                            {uploading[tool.name.toLowerCase().replace(' ', '')] ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                                Uploaden...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Bestand toevoegen
+                              </>
+                            )}
+                          </Button>
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
           {/* Overview Tab - Geïntegreerde Tools Overzicht */}
           <TabsContent value="overview" className="space-y-6">
-            {integratedTools.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Folder className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Geen tools gekoppeld</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Koppel je eerste tool om bestanden en projecten te bekijken
-                  </p>
-                  <a href="/integrations" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Ga naar Integrations
-                  </a>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {integratedTools.map((tool) => {
-                  const IconComponent = tool.icon;
-                  return (
-                    <Card key={tool.name} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <IconComponent className="h-5 w-5" />
-                          {tool.name}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Bestanden</span>
-                            <span className="font-semibold">{tool.files.length}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Projecten</span>
-                            <span className="font-semibold">{tool.projects.length}</span>
-                          </div>
-                          <div className="pt-2">
-                            <Badge variant="secondary" className="w-full justify-center">
-                              Actief
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Project Overzicht
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <h4 className="font-semibold text-blue-900">Project Status</h4>
+                      <p className="text-blue-700">Actief - {mockData.completionRate}% voltooid</p>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <h4 className="font-semibold text-green-900">Team</h4>
+                      <p className="text-green-700">{mockData.teamMembers} teamleden actief</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <h4 className="font-semibold text-yellow-900">Openstaande Taken</h4>
+                    <p className="text-yellow-700">{mockData.pendingTasks} taken, waarvan {mockData.overdueItems} over deadline</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Files Tab - Alle bestanden van geïntegreerde tools */}

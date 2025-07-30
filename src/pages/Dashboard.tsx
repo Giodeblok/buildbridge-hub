@@ -46,22 +46,26 @@ const TOKEN_KEYS: { [key: string]: string } = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: "1",
-      name: "Nieuwbouw Kantoorcomplex Amsterdam",
-      description: "Modern kantoorgebouw met 15 verdiepingen in Amsterdam Noord",
-      createdAt: "2024-01-15",
-      connectedTools: ["MS Project", "Autodesk Revit", "AFAS"]
-    },
-    {
-      id: "2", 
-      name: "Renovatie Ziekenhuis Rotterdam",
-      description: "Verbouwing van de zuidvleugel met nieuwe operatiekamers",
-      createdAt: "2024-02-20",
-      connectedTools: ["Asta Powerproject", "AutoCAD", "Bluebeam Revu"]
-    }
-  ]);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('projects');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: "1",
+        name: "Nieuwbouw Kantoorcomplex Amsterdam",
+        description: "Modern kantoorgebouw met 15 verdiepingen in Amsterdam Noord",
+        createdAt: "2024-01-15",
+        connectedTools: ["MS Project", "Autodesk Revit", "AFAS"]
+      },
+      {
+        id: "2", 
+        name: "Renovatie Ziekenhuis Rotterdam",
+        description: "Verbouwing van de zuidvleugel met nieuwe operatiekamers",
+        createdAt: "2024-02-20",
+        connectedTools: ["Asta Powerproject", "AutoCAD", "Bluebeam Revu"]
+      }
+    ];
+  });
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -86,14 +90,22 @@ export default function Dashboard() {
       connectedTools: newProject.selectedTools
     };
 
-    setProjects([...projects, project]);
+    setProjects(prev => {
+      const updated = [...prev, project];
+      localStorage.setItem('projects', JSON.stringify(updated));
+      return updated;
+    });
     setNewProject({ name: "", description: "", selectedTools: [] });
     setIsAddDialogOpen(false);
     toast.success("Project succesvol toegevoegd");
   };
 
   const handleDeleteProject = (projectId: string) => {
-    setProjects(projects.filter(p => p.id !== projectId));
+    setProjects(prev => {
+      const updated = prev.filter(p => p.id !== projectId);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      return updated;
+    });
     toast.success("Project verwijderd");
   };
 
@@ -168,6 +180,10 @@ export default function Dashboard() {
 
     loadUserTools();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">

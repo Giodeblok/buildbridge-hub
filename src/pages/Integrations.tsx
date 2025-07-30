@@ -38,6 +38,7 @@ const Integrations = () => {
   const [excelConnected, setExcelConnected] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [showAddMore, setShowAddMore] = useState(false);
+  const [confirmUnlink, setConfirmUnlink] = useState<{ open: boolean, toolId: string | null }>({ open: false, toolId: null });
 
   useEffect(() => {
     const loadUserTools = async () => {
@@ -242,6 +243,18 @@ const Integrations = () => {
     window.open(`${baseUrl}/whatsapp/auth`, "_blank", "width=500,height=700");
   };
 
+  const removeTokenForTool = (toolId: string) => {
+    switch (toolId) {
+      case 'msproject': localStorage.removeItem(MS_TOKEN_KEY); break;
+      case 'autocad': localStorage.removeItem(AUTOCAD_TOKEN_KEY); break;
+      case 'asta': localStorage.removeItem(ASTA_TOKEN_KEY); break;
+      case 'revit': localStorage.removeItem(REVIT_TOKEN_KEY); break;
+      case 'solibri': localStorage.removeItem(SOLIBRI_TOKEN_KEY); break;
+      case 'excel': localStorage.removeItem(EXCEL_TOKEN_KEY); break;
+      case 'whatsapp': localStorage.removeItem(WHATSAPP_TOKEN_KEY); break;
+    }
+  };
+
   // Functie om tool toe te voegen
   const handleAddTool = async (toolId: string) => {
     if (!selectedTools.includes(toolId)) {
@@ -264,9 +277,11 @@ const Integrations = () => {
 
   // Functie om tool te verwijderen
   const handleRemoveTool = async (toolId: string) => {
+    const isConnected = integrationStatus.find(i => i.id === toolId)?.isConnected;
     const newSelectedTools = selectedTools.filter(id => id !== toolId);
     setSelectedTools(newSelectedTools);
     localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+    if (isConnected) removeTokenForTool(toolId);
     
     // Verwijder uit database
     const { data: { user } } = await supabase.auth.getUser();
@@ -401,9 +416,9 @@ const Integrations = () => {
                       variant="outline" 
                       size="sm" 
                       className="w-full text-red-600 hover:text-red-700"
-                      onClick={() => handleRemoveTool(integration.id)}
+                      onClick={() => setConfirmUnlink({ open: true, toolId: integration.id })}
                     >
-                      Verwijderen
+                      {integration.isConnected ? 'Ontkoppelen' : 'Verwijderen uit overzicht'}
                     </Button>
                   </div>
                 </CardContent>
@@ -466,6 +481,34 @@ const Integrations = () => {
                   onClick={() => window.location.href = '/tool-selection'}
                 >
                   Volledige tool selectie
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        {confirmUnlink.open && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h2 className="text-xl font-bold mb-4">
+                {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected
+                  ? 'Weet je zeker dat je deze tool wilt ontkoppelen?'
+                  : 'Weet je zeker dat je deze tool uit je overzicht wilt verwijderen?'}
+              </h2>
+              <p className="mb-6">
+                {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected
+                  ? 'Je moet opnieuw inloggen als je deze tool weer wilt koppelen.'
+                  : 'Deze tool wordt alleen uit je overzicht verwijderd. Je kunt hem later altijd weer toevoegen.'}
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setConfirmUnlink({ open: false, toolId: null })}>Annuleren</Button>
+                <Button 
+                  variant="destructive"
+                  onClick={async () => {
+                    if (confirmUnlink.toolId) await handleRemoveTool(confirmUnlink.toolId);
+                    setConfirmUnlink({ open: false, toolId: null });
+                  }}
+                >
+                  {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected ? 'Ontkoppelen' : 'Verwijderen'}
                 </Button>
               </div>
             </div>

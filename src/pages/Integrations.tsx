@@ -10,6 +10,7 @@ const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
 const ASTA_TOKEN_KEY = "asta_token";
 const REVIT_TOKEN_KEY = "revit_token";
+const SOLIBRI_TOKEN_KEY = "solibri_token";
 const EXCEL_TOKEN_KEY = "excel_token";
 const WHATSAPP_TOKEN_KEY = "whatsapp_token";
 
@@ -33,6 +34,7 @@ const Integrations = () => {
   const [autocadConnected, setAutocadConnected] = useState(false);
   const [astaConnected, setAstaConnected] = useState(false);
   const [revitConnected, setRevitConnected] = useState(false);
+  const [solibriConnected, setSolibriConnected] = useState(false);
   const [excelConnected, setExcelConnected] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [showAddMore, setShowAddMore] = useState(false);
@@ -63,6 +65,7 @@ const Integrations = () => {
     setAutocadConnected(!!localStorage.getItem(AUTOCAD_TOKEN_KEY));
     setAstaConnected(!!localStorage.getItem(ASTA_TOKEN_KEY));
     setRevitConnected(!!localStorage.getItem(REVIT_TOKEN_KEY));
+    setSolibriConnected(!!localStorage.getItem(SOLIBRI_TOKEN_KEY));
     setExcelConnected(!!localStorage.getItem(EXCEL_TOKEN_KEY));
     setWhatsappConnected(!!localStorage.getItem(WHATSAPP_TOKEN_KEY));
 
@@ -168,6 +171,26 @@ const Integrations = () => {
           });
         }
       }
+      if (event.data && event.data.solibri_token) {
+        localStorage.setItem(SOLIBRI_TOKEN_KEY, event.data.solibri_token);
+        setSolibriConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'solibri',
+              accessToken: event.data.solibri_token,
+              refreshToken: event.data.solibri_refresh_token || null,
+              expiresIn: event.data.solibri_expires_in || 3600
+            })
+          });
+        }
+      }
       if (event.data && event.data.whatsapp_token) {
         localStorage.setItem(WHATSAPP_TOKEN_KEY, event.data.whatsapp_token);
         setWhatsappConnected(true);
@@ -208,6 +231,9 @@ const Integrations = () => {
   };
   const handleRevitConnect = () => {
     window.open(`${baseUrl}/revit/auth`, "_blank", "width=500,height=700");
+  };
+  const handleSolibriConnect = () => {
+    window.open(`${baseUrl}/solibri/auth`, "_blank", "width=500,height=700");
   };
   const handleExcelConnect = () => {
     window.open(`${baseUrl}/excel/auth`, "_blank", "width=500,height=700");
@@ -253,13 +279,29 @@ const Integrations = () => {
     }
   };
 
-  const integrationStatus = selectedTools.map(toolId => ({
-    id: toolId,
-    name: toolId.charAt(0).toUpperCase() + toolId.slice(1),
-    status: Math.random() > 0.3 ? 'connected' : 'error',
-    lastSync: new Date(Date.now() - Math.random() * 3600000).toLocaleString('nl-NL'),
-    dataPoints: Math.floor(Math.random() * 1000) + 100
-  }));
+  const integrationStatus = selectedTools.map(toolId => {
+    const isConnected = (() => {
+      switch(toolId) {
+        case 'msproject': return msConnected;
+        case 'autocad': return autocadConnected;
+        case 'asta': return astaConnected;
+        case 'revit': return revitConnected;
+        case 'solibri': return solibriConnected;
+        case 'excel': return excelConnected;
+        case 'whatsapp': return whatsappConnected;
+        default: return Math.random() > 0.3;
+      }
+    })();
+    
+    return {
+      id: toolId,
+      name: toolId.charAt(0).toUpperCase() + toolId.slice(1),
+      status: isConnected ? 'connected' : 'error',
+      lastSync: new Date(Date.now() - Math.random() * 3600000).toLocaleString('nl-NL'),
+      dataPoints: Math.floor(Math.random() * 1000) + 100,
+      isConnected
+    };
+  });
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -331,11 +373,30 @@ const Integrations = () => {
                       <p>Data punten: {integration.dataPoints}</p>
                     </div>
                     
-                    {integration.status === 'error' && (
+                    {!integration.isConnected ? (
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          switch(integration.id) {
+                            case 'msproject': handleMsConnect(); break;
+                            case 'autocad': handleAutocadConnect(); break;
+                            case 'asta': handleAstaConnect(); break;
+                            case 'revit': handleRevitConnect(); break;
+                            case 'solibri': handleSolibriConnect(); break;
+                            case 'excel': handleExcelConnect(); break;
+                            case 'whatsapp': handleWhatsappConnect(); break;
+                          }
+                        }}
+                      >
+                        Koppel {integration.name}
+                      </Button>
+                    ) : integration.status === 'error' ? (
                       <Button variant="outline" size="sm" className="w-full">
                         Opnieuw verbinden
                       </Button>
-                    )}
+                    ) : null}
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -348,84 +409,6 @@ const Integrations = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-        {/* MS Project koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('msproject') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">MS Project koppeling</h2>
-            {msConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleMsConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel MS Project
-              </Button>
-            )}
-          </div>
-        )}
-        {/* AutoCAD koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('autocad') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">AutoCAD koppeling</h2>
-            {autocadConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleAutocadConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel AutoCAD
-              </Button>
-            )}
-          </div>
-        )}
-        {/* Asta Powerproject koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('asta') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">Asta Powerproject koppeling</h2>
-            {astaConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleAstaConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel Asta Powerproject
-              </Button>
-            )}
-          </div>
-        )}
-        {/* Revit koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('revit') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">Revit koppeling</h2>
-            {revitConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleRevitConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel Revit
-              </Button>
-            )}
-          </div>
-        )}
-        {/* Excel koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('excel') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">Excel koppeling</h2>
-            {excelConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleExcelConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel Excel
-              </Button>
-            )}
-          </div>
-        )}
-        {/* WhatsApp koppeling alleen tonen als geselecteerd */}
-        {selectedTools.includes('whatsapp') && (
-          <div className="my-6">
-            <h2 className="text-xl font-bold mb-2">WhatsApp koppeling</h2>
-            {whatsappConnected ? (
-              <span className="text-green-600">Gekoppeld</span>
-            ) : (
-              <Button onClick={handleWhatsappConnect} className="px-4 py-2 bg-blue-600 text-white rounded">
-                Koppel WhatsApp
-              </Button>
-            )}
           </div>
         )}
 

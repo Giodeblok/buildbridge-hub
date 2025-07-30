@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Settings, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 interface Project {
   id: string;
@@ -18,14 +19,30 @@ interface Project {
   connectedTools: string[];
 }
 
-const mockIntegratedTools = [
-  "MS Project",
-  "Asta Powerproject", 
-  "Autodesk Revit",
-  "AutoCAD",
-  "Bluebeam Revu",
-  "AFAS"
-];
+// Tool mapping voor weergave
+const toolDisplayNames: { [key: string]: string } = {
+  msproject: "MS Project",
+  asta: "Asta Powerproject",
+  revit: "Autodesk Revit",
+  autocad: "AutoCAD",
+  bluebeam: "Bluebeam Revu",
+  afas: "AFAS",
+  excel: "Excel",
+  exact: "Exact",
+  whatsapp: "WhatsApp",
+  solibri: "Solibri"
+};
+
+// Token keys die overeenkomen met Integrations pagina
+const TOKEN_KEYS: { [key: string]: string } = {
+  msproject: "msproject_token",
+  autocad: "autocad_token",
+  asta: "asta_token",
+  revit: "revit_token",
+  solibri: "solibri_token",
+  excel: "excel_token",
+  whatsapp: "whatsapp_token"
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -52,6 +69,8 @@ export default function Dashboard() {
     description: "",
     selectedTools: [] as string[]
   });
+  const [userTools, setUserTools] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const handleAddProject = () => {
     if (!newProject.name.trim()) {
@@ -90,6 +109,65 @@ export default function Dashboard() {
   const openProject = (projectId: string) => {
     navigate(`/project/${projectId}`);
   };
+
+  // Laad gekoppelde tools van gebruiker
+  useEffect(() => {
+    const loadUserTools = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Haal tools op uit Supabase database
+          const { data: toolsData } = await supabase
+            .from('user_tools')
+            .select('tool_id')
+            .eq('user_id', user.id);
+          
+          if (toolsData) {
+            // Filter alleen tools die daadwerkelijk gekoppeld zijn (hebben tokens)
+            const connectedTools = toolsData
+              .map(tool => tool.tool_id)
+              .filter(toolId => {
+                // Check of er een token bestaat voor deze tool
+                const tokenKey = TOKEN_KEYS[toolId] || `${toolId}_token`;
+                return !!localStorage.getItem(tokenKey);
+              });
+            
+            setUserTools(connectedTools);
+          }
+        } else {
+          // Fallback naar localStorage voor niet-ingelogde gebruikers
+          const saved = localStorage.getItem('selectedTools');
+          if (saved) {
+            const selectedTools = JSON.parse(saved);
+            // Filter alleen gekoppelde tools
+            const connectedTools = selectedTools.filter((toolId: string) => {
+              const tokenKey = TOKEN_KEYS[toolId] || `${toolId}_token`;
+              return !!localStorage.getItem(tokenKey);
+            });
+            setUserTools(connectedTools);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user tools:', error);
+        // Fallback naar localStorage
+        const saved = localStorage.getItem('selectedTools');
+        if (saved) {
+          const selectedTools = JSON.parse(saved);
+          // Filter alleen gekoppelde tools
+          const connectedTools = selectedTools.filter((toolId: string) => {
+            const tokenKey = TOKEN_KEYS[toolId] || `${toolId}_token`;
+            return !!localStorage.getItem(tokenKey);
+          });
+          setUserTools(connectedTools);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserTools();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -143,19 +221,32 @@ export default function Dashboard() {
                     Selecteer welke tools je wilt koppelen aan dit project
                   </p>
                   <div className="grid grid-cols-2 gap-3">
-                    {mockIntegratedTools.map((tool) => (
-                      <div
-                        key={tool}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          newProject.selectedTools.includes(tool)
-                            ? 'border-construction-primary bg-construction-primary/5'
-                            : 'border-border hover:border-construction-primary/50'
-                        }`}
-                        onClick={() => handleToolToggle(tool)}
-                      >
-                        <div className="font-medium">{tool}</div>
+                    {loading ? (
+                      <div className="col-span-2 text-center py-4 text-muted-foreground">
+                        Tools laden...
                       </div>
-                    ))}
+                    ) : userTools.length === 0 ? (
+                      <div className="col-span-2 text-center py-4 text-muted-foreground">
+                        Geen tools gekoppeld. Ga naar <a href="/integraties" className="text-construction-primary hover:underline">Integraties</a> om tools toe te voegen.
+                      </div>
+                    ) : (
+                      userTools.map((toolId) => {
+                        const toolName = toolDisplayNames[toolId] || toolId;
+                        return (
+                          <div
+                            key={toolId}
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              newProject.selectedTools.includes(toolName)
+                                ? 'border-construction-primary bg-construction-primary/5'
+                                : 'border-border hover:border-construction-primary/50'
+                            }`}
+                            onClick={() => handleToolToggle(toolName)}
+                          >
+                            <div className="font-medium">{toolName}</div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 

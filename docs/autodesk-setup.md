@@ -1,4 +1,4 @@
-# Autodesk Developer Account Setup voor AutoCAD OAuth
+# Autodesk Developer Account Setup voor AutoCAD, Revit & Solibri OAuth
 
 ## Stap 1: Autodesk Developer Account aanmaken
 
@@ -22,7 +22,10 @@
 2. **App instellen:**
    - Ga naar "App Settings"
    - Kopieer je **Client ID** en **Client Secret**
-   - Voeg je callback URL toe: `http://localhost:4000/autocad/callback`
+   - Voeg je callback URLs toe:
+     - `http://localhost:4000/autocad/callback`
+     - `http://localhost:4000/revit/callback`
+     - `http://localhost:4000/solibri/callback`
 
 ## Stap 3: API Permissions instellen
 
@@ -42,7 +45,9 @@
 
 1. **Redirect URIs:**
    - Voeg toe: `http://localhost:4000/autocad/callback`
-   - Zorg dat deze exact overeenkomt
+   - Voeg toe: `http://localhost:4000/revit/callback`
+   - Voeg toe: `http://localhost:4000/solibri/callback`
+   - Zorg dat deze exact overeenkomen
 
 2. **Scopes voor OAuth:**
    - `data:read`
@@ -59,10 +64,28 @@ AUTODESK_CLIENT_SECRET=jouw_autodesk_client_secret_hier
 
 ## Testen:
 
-1. **Test OAuth flow:**
+1. **Test AutoCAD OAuth flow:**
    - Ga naar: `http://localhost:4000/autocad/auth`
    - Je zou naar Autodesk login moeten worden doorgestuurd
    - Na login krijg je een access token terug
+
+2. **Test Revit OAuth flow:**
+   - Ga naar: `http://localhost:4000/revit/auth`
+   - Gebruikt hetzelfde Autodesk account als AutoCAD
+   - Na login krijg je een access token terug
+
+3. **Test Solibri OAuth flow:**
+   - Ga naar: `http://localhost:4000/solibri/auth`
+   - Gebruikt hetzelfde Autodesk account als AutoCAD/Revit
+   - Na login krijg je een access token terug
+
+## Belangrijke informatie:
+
+**Gedeeld Autodesk Account:** Omdat AutoCAD, Revit en Solibri allemaal van Autodesk zijn, kunnen ze hetzelfde Autodesk account gebruiken. Dit betekent:
+- Eén keer inloggen voor alle drie de tools
+- Gedeelde projecten en bestanden
+- Consistente authenticatie
+- BIM workflow integratie (AutoCAD → Revit → Solibri)
 
 ## Belangrijke URLs:
 - **Autodesk Forge:** https://forge.autodesk.com/

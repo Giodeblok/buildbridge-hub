@@ -623,30 +623,180 @@ app.get('/asta/files/:fileId/preview', async (req, res) => {
   }
 });
 
-// --- Revit OAuth mock ---
-const REVIT_TOKEN = 'mock-revit-token';
-
+// --- Revit OAuth (gebruikt dezelfde Autodesk Forge API als AutoCAD) ---
 app.get('/revit/auth', (req, res) => {
-  // In productie: redirect naar echte Revit OAuth
-  res.redirect('/revit/callback?code=mockcode');
+  const state = Math.random().toString(36).substring(7);
+  const params = querystring.stringify({
+    client_id: AUTODESK_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'http://localhost:4000/revit/callback',
+    scope: AUTODESK_SCOPES,
+    state: state
+  });
+  res.redirect(`${AUTODESK_AUTH_URL}?${params}`);
 });
 
-app.get('/revit/callback', (req, res) => {
-  // In productie: wissel code om voor token
-  res.send(`<script>window.opener && window.opener.postMessage({ revit_token: '${REVIT_TOKEN}' }, '*'); window.close();</script>`);
-});
+app.get('/revit/callback', async (req, res) => {
+  const { code, state } = req.query;
+  if (!code) return res.status(400).send('No authorization code received');
 
-app.get('/revit/projects', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (token !== REVIT_TOKEN) {
-    return res.status(401).json({ error: 'No valid Revit token' });
+  try {
+    // Wissel authorization code om voor access token
+    const tokenResponse = await axios.post(AUTODESK_TOKEN_URL, querystring.stringify({
+      client_id: AUTODESK_CLIENT_ID,
+      client_secret: AUTODESK_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'http://localhost:4000/revit/callback'
+    }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+    
+    res.send(`
+      <script>
+        window.opener && window.opener.postMessage({ 
+          revit_token: '${access_token}',
+          revit_refresh_token: '${refresh_token}',
+          revit_expires_in: ${expires_in}
+        }, '*');
+        window.close();
+      </script>
+    `);
+  } catch (error) {
+    console.error('Revit OAuth error:', error.response?.data || error.message);
+    res.status(500).send('Revit OAuth authentication failed');
   }
+});
+
+app.get('/revit/projects', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  // Tijdelijke oplossing: gebruik altijd mock data tot API permissions zijn opgelost
+  console.log('Using mock data for Revit projects (API permissions pending)');
   res.json({
     projects: [
-      { id: 201, name: 'Revit Project X', status: 'on-track', progress: 75 },
-      { id: 202, name: 'Revit Project Y', status: 'ahead', progress: 90 }
+      { id: 201, name: 'Wooncomplex Amstelveen - BIM Model', status: 'on-track', progress: 75 },
+      { id: 202, name: 'Kantoorgebouw Rotterdam - 3D Model', status: 'ahead', progress: 90 },
+      { id: 203, name: 'Renovatie School Utrecht - BIM', status: 'delayed', progress: 45 }
     ]
   });
+
+  /* 
+  // Echte API call (uncomment wanneer API permissions zijn opgelost)
+  try {
+    const response = await axios.get('https://developer.api.autodesk.com/data/v1/projects', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const projects = response.data.data.map((project, index) => ({
+      id: project.id,
+      name: project.attributes.name || `Revit Project ${index + 1}`,
+      status: 'on-track',
+      progress: Math.floor(Math.random() * 100)
+    }));
+
+    res.json({ projects });
+  } catch (error) {
+    console.error('Revit API error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch projects from Revit API' });
+  }
+  */
+});
+
+// --- Solibri OAuth (gebruikt dezelfde Autodesk Forge API als AutoCAD/Revit) ---
+app.get('/solibri/auth', (req, res) => {
+  const state = Math.random().toString(36).substring(7);
+  const params = querystring.stringify({
+    client_id: AUTODESK_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'http://localhost:4000/solibri/callback',
+    scope: AUTODESK_SCOPES,
+    state: state
+  });
+  res.redirect(`${AUTODESK_AUTH_URL}?${params}`);
+});
+
+app.get('/solibri/callback', async (req, res) => {
+  const { code, state } = req.query;
+  if (!code) return res.status(400).send('No authorization code received');
+
+  try {
+    // Wissel authorization code om voor access token
+    const tokenResponse = await axios.post(AUTODESK_TOKEN_URL, querystring.stringify({
+      client_id: AUTODESK_CLIENT_ID,
+      client_secret: AUTODESK_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'http://localhost:4000/solibri/callback'
+    }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+    
+    res.send(`
+      <script>
+        window.opener && window.opener.postMessage({ 
+          solibri_token: '${access_token}',
+          solibri_refresh_token: '${refresh_token}',
+          solibri_expires_in: ${expires_in}
+        }, '*');
+        window.close();
+      </script>
+    `);
+  } catch (error) {
+    console.error('Solibri OAuth error:', error.response?.data || error.message);
+    res.status(500).send('Solibri OAuth authentication failed');
+  }
+});
+
+app.get('/solibri/projects', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  // Tijdelijke oplossing: gebruik altijd mock data tot API permissions zijn opgelost
+  console.log('Using mock data for Solibri projects (API permissions pending)');
+  res.json({
+    projects: [
+      { id: 301, name: 'Wooncomplex Amstelveen - BIM Check', status: 'on-track', progress: 85 },
+      { id: 302, name: 'Kantoorgebouw Rotterdam - Model Validation', status: 'ahead', progress: 95 },
+      { id: 303, name: 'Renovatie School Utrecht - Quality Check', status: 'delayed', progress: 60 }
+    ]
+  });
+
+  /* 
+  // Echte API call (uncomment wanneer API permissions zijn opgelost)
+  try {
+    const response = await axios.get('https://developer.api.autodesk.com/data/v1/projects', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const projects = response.data.data.map((project, index) => ({
+      id: project.id,
+      name: project.attributes.name || `Solibri Project ${index + 1}`,
+      status: 'on-track',
+      progress: Math.floor(Math.random() * 100)
+    }));
+
+    res.json({ projects });
+  } catch (error) {
+    console.error('Solibri API error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch projects from Solibri API' });
+  }
+  */
 });
 
 // --- Excel OAuth (via Microsoft Graph API) ---

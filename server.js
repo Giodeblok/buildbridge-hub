@@ -661,7 +661,8 @@ app.get('/excel/auth', (req, res) => {
     redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/excel/callback` : 'http://localhost:4000/excel/callback',
     response_mode: 'query',
     scope: MS_SCOPES,
-    state: state
+    state: state,
+    prompt: 'select_account' // Forceert account selectie
   });
   res.redirect(`${MS_AUTH_URL}?${params}`);
 });

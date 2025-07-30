@@ -75,7 +75,7 @@ const Integrations = () => {
         // Sla token op in database
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await fetch('http://localhost:4000/user/tokens', {
+          await fetch(`${baseUrl}/user/tokens`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -95,7 +95,7 @@ const Integrations = () => {
         // Sla token op in database
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await fetch('http://localhost:4000/user/tokens', {
+          await fetch(`${baseUrl}/user/tokens`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -193,23 +193,27 @@ const Integrations = () => {
     return () => window.removeEventListener('message', handler);
   }, []);
 
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://your-app-name.vercel.app/api' 
+    : 'http://localhost:4000';
+
   const handleMsConnect = () => {
-    window.open("http://localhost:4000/msproject/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/msproject/auth`, "_blank", "width=500,height=700");
   };
   const handleAutocadConnect = () => {
-    window.open("http://localhost:4000/autocad/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/autocad/auth`, "_blank", "width=500,height=700");
   };
   const handleAstaConnect = () => {
-    window.open("http://localhost:4000/asta/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/asta/auth`, "_blank", "width=500,height=700");
   };
   const handleRevitConnect = () => {
-    window.open("http://localhost:4000/revit/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/revit/auth`, "_blank", "width=500,height=700");
   };
   const handleExcelConnect = () => {
-    window.open("http://localhost:4000/excel/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/excel/auth`, "_blank", "width=500,height=700");
   };
   const handleWhatsappConnect = () => {
-    window.open("http://localhost:4000/whatsapp/auth", "_blank", "width=500,height=700");
+    window.open(`${baseUrl}/whatsapp/auth`, "_blank", "width=500,height=700");
   };
 
   // Functie om tool toe te voegen

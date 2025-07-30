@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import ToolSelection from "./pages/ToolSelection";
 import Integrations from "./pages/Integrations";
 import Dashboard from "./pages/Dashboard";
+import ProjectDashboard from "./pages/ProjectDashboard";
 import Pricing from "./pages/Pricing";
 import Contact from "./pages/Contact";
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/tool-selection" element={<ToolSelection />} />
           <Route path="/integraties" element={<Integrations />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/project/:id" element={<ProjectDashboard />} />
           <Route path="/prijzen" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -737,7 +737,9 @@ const Dashboard = () => {
 
             {/* Tool Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {integratedTools.map((tool) => (
+              {integratedTools
+                .filter(tool => connectedTools.includes(tool.name.toLowerCase().replace(' ', '')))
+                .map((tool) => (
                 <Card key={tool.name} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">

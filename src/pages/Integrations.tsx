@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, Settings, Plus, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/ui/use-toast";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
@@ -39,6 +40,10 @@ const Integrations = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [showAddMore, setShowAddMore] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState<{ open: boolean, toolId: string | null }>({ open: false, toolId: null });
+  const { toast } = useToast();
+
+  // State voor disconnected tools
+  const [disconnectedTools, setDisconnectedTools] = useState<string[]>([]);
 
   useEffect(() => {
     const loadUserTools = async () => {
@@ -74,43 +79,21 @@ const Integrations = () => {
     const handler = async (event: MessageEvent) => {
       if (event.data && event.data.msproject_token) {
         localStorage.setItem(MS_TOKEN_KEY, event.data.msproject_token);
-        setMsConnected(true);
-        
-        // Sla token op in database
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await fetch(`${baseUrl}/user/tokens`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              toolId: 'msproject',
-              accessToken: event.data.msproject_token,
-              refreshToken: event.data.msproject_refresh_token || null,
-              expiresIn: event.data.msproject_expires_in || 3600
-            })
-          });
-        }
+        await handleSuccessfulAuth(
+          'msproject', 
+          event.data.msproject_token, 
+          event.data.msproject_refresh_token, 
+          event.data.msproject_expires_in
+        );
       }
       if (event.data && event.data.autocad_token) {
         localStorage.setItem(AUTOCAD_TOKEN_KEY, event.data.autocad_token);
-        setAutocadConnected(true);
-        
-        // Sla token op in database
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await fetch(`${baseUrl}/user/tokens`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              toolId: 'autocad',
-              accessToken: event.data.autocad_token,
-              refreshToken: event.data.autocad_refresh_token || null,
-              expiresIn: event.data.autocad_expires_in || 3600
-            })
-          });
-        }
+        await handleSuccessfulAuth(
+          'autocad', 
+          event.data.autocad_token, 
+          event.data.autocad_refresh_token, 
+          event.data.autocad_expires_in
+        );
       }
       if (event.data && event.data.asta_token) {
         localStorage.setItem(ASTA_TOKEN_KEY, event.data.asta_token);
@@ -221,6 +204,83 @@ const Integrations = () => {
     ? 'https://your-app-name.vercel.app/api' 
     : 'http://localhost:4000';
 
+  // Helper functie om tool te koppelen na succesvolle authenticatie
+  const handleSuccessfulAuth = async (toolId: string, token: string, refreshToken?: string, expiresIn?: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Sla token op in database
+      await fetch(`${baseUrl}/user/tokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          toolId: toolId,
+          accessToken: token,
+          refreshToken: refreshToken || null,
+          expiresIn: expiresIn || 3600
+        })
+      });
+
+      // Voeg tool toe aan user_tools tabel
+      await supabase
+        .from('user_tools')
+        .upsert({
+          user_id: user.id,
+          tool_id: toolId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      // Update integration status
+      await supabase
+        .from('integration_status')
+        .upsert({
+          user_id: user.id,
+          tool_id: toolId,
+          is_connected: true,
+          sync_status: 'connected',
+          last_sync_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+    }
+
+    // Voeg tool toe aan selectedTools als deze er nog niet in zit
+    if (!selectedTools.includes(toolId)) {
+      const newSelectedTools = [...selectedTools, toolId];
+      setSelectedTools(newSelectedTools);
+      localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+    }
+
+    // Verwijder uit disconnectedTools state
+    setDisconnectedTools(prev => prev.filter(id => id !== toolId));
+
+    // Update connection status
+    switch(toolId) {
+      case 'msproject': setMsConnected(true); break;
+      case 'autocad': setAutocadConnected(true); break;
+      case 'asta': setAstaConnected(true); break;
+      case 'revit': setRevitConnected(true); break;
+      case 'solibri': setSolibriConnected(true); break;
+      case 'excel': setExcelConnected(true); break;
+      case 'whatsapp': setWhatsappConnected(true); break;
+    }
+
+    const toolNames = {
+      'msproject': 'MS Project',
+      'autocad': 'AutoCAD',
+      'asta': 'Asta Powerproject',
+      'revit': 'Revit',
+      'solibri': 'Solibri',
+      'excel': 'Excel',
+      'whatsapp': 'WhatsApp'
+    };
+
+    toast({
+      title: `${toolNames[toolId as keyof typeof toolNames]} gekoppeld`,
+      description: `${toolNames[toolId as keyof typeof toolNames]} is succesvol gekoppeld aan je account.`,
+    });
+  };
+
   const handleMsConnect = () => {
     window.open(`${baseUrl}/msproject/auth`, "_blank", "width=500,height=700");
   };
@@ -275,15 +335,20 @@ const Integrations = () => {
     }
   };
 
-  // Functie om tool te verwijderen
-  const handleRemoveTool = async (toolId: string) => {
-    const isConnected = integrationStatus.find(i => i.id === toolId)?.isConnected;
-    const newSelectedTools = selectedTools.filter(id => id !== toolId);
-    setSelectedTools(newSelectedTools);
-    localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
-    if (isConnected) removeTokenForTool(toolId);
-    
-    // Verwijder uit database
+  // Functie om tool te ontkoppelen (tool blijft in overzicht)
+  const handleDisconnectTool = async (toolId: string) => {
+    // Verwijder de token uit localStorage
+    switch (toolId) {
+      case 'msproject': localStorage.removeItem(MS_TOKEN_KEY); break;
+      case 'autocad': localStorage.removeItem(AUTOCAD_TOKEN_KEY); break;
+      case 'asta': localStorage.removeItem(ASTA_TOKEN_KEY); break;
+      case 'revit': localStorage.removeItem(REVIT_TOKEN_KEY); break;
+      case 'solibri': localStorage.removeItem(SOLIBRI_TOKEN_KEY); break;
+      case 'excel': localStorage.removeItem(EXCEL_TOKEN_KEY); break;
+      case 'whatsapp': localStorage.removeItem(WHATSAPP_TOKEN_KEY); break;
+    }
+
+    // Verwijder alleen de koppeling uit de user_tools tabel
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
@@ -291,11 +356,200 @@ const Integrations = () => {
         .delete()
         .eq('user_id', user.id)
         .eq('tool_id', toolId);
+      
+      // Update ook de integration_status naar disconnected
+      await supabase
+        .from('integration_status')
+        .upsert({
+          user_id: user.id,
+          tool_id: toolId,
+          is_connected: false,
+          sync_status: 'disconnected',
+          updated_at: new Date().toISOString()
+        });
+    }
+
+    // Voeg tool toe aan disconnectedTools state
+    setDisconnectedTools(prev => [...prev, toolId]);
+
+    toast({
+      title: "Tool ontkoppeld",
+      description: `${toolId} is ontkoppeld. Je moet opnieuw authenticeren om de tool te koppelen.`,
+    });
+  };
+
+  // Functie om tool te verwijderen (alleen ontkoppelen, token behouden)
+  const handleRemoveTool = async (toolId: string) => {
+    const isConnected = integrationStatus.find(i => i.id === toolId)?.isConnected;
+    const newSelectedTools = selectedTools.filter(id => id !== toolId);
+    setSelectedTools(newSelectedTools);
+    localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+    
+    // NIET de token verwijderen - alleen ontkoppelen van het scherm
+    // if (isConnected) removeTokenForTool(toolId); // Deze regel verwijderen
+    
+    // Verwijder alleen de koppeling uit de user_tools tabel
+    // De oauth_tokens blijven behouden
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('user_tools')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('tool_id', toolId);
+      
+      // Update ook de integration_status naar disconnected
+      await supabase
+        .from('integration_status')
+        .upsert({
+          user_id: user.id,
+          tool_id: toolId,
+          is_connected: false,
+          sync_status: 'disconnected',
+          updated_at: new Date().toISOString()
+        });
     }
   };
 
+  // Functie om tool opnieuw te koppelen
+  const handleReconnectTool = async (toolId: string) => {
+    // Start altijd de authenticatie flow, ongeacht of er een token bestaat
+    toast({
+      title: "Authenticatie vereist",
+      description: `Je moet ${toolId} opnieuw authenticeren.`,
+    });
+    
+    // Start authenticatie flow
+    switch(toolId) {
+      case 'msproject': handleMsConnect(); break;
+      case 'autocad': handleAutocadConnect(); break;
+      case 'asta': handleAstaConnect(); break;
+      case 'revit': handleRevitConnect(); break;
+      case 'solibri': handleSolibriConnect(); break;
+      case 'excel': handleExcelConnect(); break;
+      case 'whatsapp': handleWhatsappConnect(); break;
+    }
+  };
+
+  // Functie om token handmatig toe te voegen voor specifiek e-mailadres
+  const addTokenForEmail = async (email: string, toolId: string, token: string) => {
+    try {
+      // Voor nu gebruiken we een eenvoudigere aanpak
+      // In productie zou je dit via een admin API endpoint doen
+      
+      // Voeg token toe aan localStorage voor de huidige gebruiker
+      // (Dit is een tijdelijke oplossing - in productie zou je dit via backend doen)
+      
+      const tokenKey = (() => {
+        switch(toolId) {
+          case 'autocad': return AUTOCAD_TOKEN_KEY;
+          case 'msproject': return MS_TOKEN_KEY;
+          case 'asta': return ASTA_TOKEN_KEY;
+          case 'revit': return REVIT_TOKEN_KEY;
+          case 'solibri': return SOLIBRI_TOKEN_KEY;
+          case 'excel': return EXCEL_TOKEN_KEY;
+          case 'whatsapp': return WHATSAPP_TOKEN_KEY;
+          default: return null;
+        }
+      })();
+
+      if (!tokenKey) {
+        toast({
+          title: "Ongeldige tool",
+          description: `Tool ${toolId} wordt niet ondersteund.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Voeg token toe aan localStorage
+      localStorage.setItem(tokenKey, token);
+
+      // Voeg tool toe aan selectedTools als deze er nog niet in zit
+      if (!selectedTools.includes(toolId)) {
+        const newSelectedTools = [...selectedTools, toolId];
+        setSelectedTools(newSelectedTools);
+        localStorage.setItem('selectedTools', JSON.stringify(newSelectedTools));
+      }
+
+      // Sla op in database voor huidige gebruiker
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Voeg token toe aan oauth_tokens tabel
+        await supabase
+          .from('oauth_tokens')
+          .upsert({
+            user_id: user.id,
+            tool_id: toolId,
+            access_token: token,
+            expires_in: 3600, // 1 uur (standaard)
+            expires_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        // Voeg tool toe aan user_tools tabel
+        await supabase
+          .from('user_tools')
+          .upsert({
+            user_id: user.id,
+            tool_id: toolId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        // Update integration status
+        await supabase
+          .from('integration_status')
+          .upsert({
+            user_id: user.id,
+            tool_id: toolId,
+            is_connected: true,
+            sync_status: 'connected',
+            last_sync_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+      }
+
+      toast({
+        title: "Token toegevoegd",
+        description: `AutoCAD token succesvol toegevoegd voor ${email}`,
+      });
+
+      console.log(`Token toegevoegd voor ${email} - Tool: ${toolId}`);
+
+    } catch (error) {
+      console.error('Error in addTokenForEmail:', error);
+      toast({
+        title: "Fout",
+        description: "Er is een fout opgetreden bij het toevoegen van de token.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Functie om AutoCAD token toe te voegen voor giodeblok@gmail.com
+  const addAutocadTokenForGiodeblok = () => {
+    // Vervang dit met de daadwerkelijke AutoCAD token
+    const autocadToken = "YOUR_AUTOCAD_TOKEN_HERE";
+    
+    if (autocadToken === "YOUR_AUTOCAD_TOKEN_HERE") {
+      toast({
+        title: "Token vereist",
+        description: "Vervang 'YOUR_AUTOCAD_TOKEN_HERE' met de daadwerkelijke AutoCAD token.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addTokenForEmail("giodeblok@gmail.com", "autocad", autocadToken);
+  };
+
   const integrationStatus = selectedTools.map(toolId => {
-    const isConnected = (() => {
+    // Check of tool is gemarkeerd als disconnected
+    const isDisconnected = disconnectedTools.includes(toolId);
+    
+    const isConnected = isDisconnected ? false : (() => {
       switch(toolId) {
         case 'msproject': return msConnected;
         case 'autocad': return autocadConnected;
@@ -388,38 +642,44 @@ const Integrations = () => {
                       <p>Data punten: {integration.dataPoints}</p>
                     </div>
                     
-                    {!integration.isConnected ? (
+                    <div className="space-y-2">
+                      {!integration.isConnected ? (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleReconnectTool(integration.id)}
+                        >
+                          Koppelen
+                        </Button>
+                      ) : integration.status === 'error' ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleReconnectTool(integration.id)}
+                        >
+                          Opnieuw verbinden
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full text-red-600 hover:text-red-700"
+                          onClick={() => handleDisconnectTool(integration.id)}
+                        >
+                          Ontkoppelen
+                        </Button>
+                      )}
                       <Button 
-                        variant="default" 
+                        variant="outline" 
                         size="sm" 
-                        className="w-full"
-                        onClick={() => {
-                          switch(integration.id) {
-                            case 'msproject': handleMsConnect(); break;
-                            case 'autocad': handleAutocadConnect(); break;
-                            case 'asta': handleAstaConnect(); break;
-                            case 'revit': handleRevitConnect(); break;
-                            case 'solibri': handleSolibriConnect(); break;
-                            case 'excel': handleExcelConnect(); break;
-                            case 'whatsapp': handleWhatsappConnect(); break;
-                          }
-                        }}
+                        className="w-full text-red-600 hover:text-red-700"
+                        onClick={() => setConfirmUnlink({ open: true, toolId: integration.id })}
                       >
-                        Koppel {integration.name}
+                        Verwijderen uit overzicht
                       </Button>
-                    ) : integration.status === 'error' ? (
-                      <Button variant="outline" size="sm" className="w-full">
-                        Opnieuw verbinden
-                      </Button>
-                    ) : null}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-red-600 hover:text-red-700"
-                      onClick={() => setConfirmUnlink({ open: true, toolId: integration.id })}
-                    >
-                      {integration.isConnected ? 'Ontkoppelen' : 'Verwijderen uit overzicht'}
-                    </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -490,14 +750,10 @@ const Integrations = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
               <h2 className="text-xl font-bold mb-4">
-                {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected
-                  ? 'Weet je zeker dat je deze tool wilt ontkoppelen?'
-                  : 'Weet je zeker dat je deze tool uit je overzicht wilt verwijderen?'}
+                Weet je zeker dat je deze tool uit je overzicht wilt verwijderen?
               </h2>
               <p className="mb-6">
-                {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected
-                  ? 'Je moet opnieuw inloggen als je deze tool weer wilt koppelen.'
-                  : 'Deze tool wordt alleen uit je overzicht verwijderd. Je kunt hem later altijd weer toevoegen.'}
+                Deze tool wordt uit je overzicht verwijderd. Je kunt hem later altijd weer toevoegen.
               </p>
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setConfirmUnlink({ open: false, toolId: null })}>Annuleren</Button>
@@ -508,7 +764,7 @@ const Integrations = () => {
                     setConfirmUnlink({ open: false, toolId: null });
                   }}
                 >
-                  {integrationStatus.find(i => i.id === confirmUnlink.toolId)?.isConnected ? 'Ontkoppelen' : 'Verwijderen'}
+                  Verwijderen
                 </Button>
               </div>
             </div>

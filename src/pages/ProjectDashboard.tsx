@@ -516,37 +516,12 @@ const Dashboard = () => {
 
   // Mock data for integrated tools - in real app this would come from localStorage or API
   const mockData = {
-    activeProjects: 12,
-    totalBudget: 2840000,
-    completionRate: 78,
-    pendingTasks: 23,
-    teamMembers: 45,
+    activeProjects: 3,
+    totalBudget: 2400000,
+    completionRate: 67,
+    pendingTasks: 12,
+    teamMembers: 15,
     overdueItems: 3
-  };
-
-  const currentProject = "Wooncomplex Amstelveen";
-
-  const recentProjects = allProjects.length > 0 ? allProjects : [
-    { name: "Wooncomplex Amstelveen", progress: 85, status: "on-track" },
-    { name: "Kantoorgebouw Rotterdam", progress: 45, status: "delayed" },
-    { name: "Renovatie School Utrecht", progress: 92, status: "ahead" },
-    { name: "Sporthal Eindhoven", progress: 23, status: "on-track" }
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ahead': return 'text-green-600';
-      case 'delayed': return 'text-red-600';
-      default: return 'text-blue-600';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'ahead': return 'Voor op schema';
-      case 'delayed': return 'Vertraagd';
-      default: return 'Op schema';
-    }
   };
 
   return (
@@ -561,111 +536,122 @@ const Dashboard = () => {
             Realtime overzicht van {projectId ? `Project ${projectId}` : 'Wooncomplex Amstelveen'}
           </p>
         </div>
-      
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Actieve Projecten</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{mockData.activeProjects}</div>
-              <p className="text-xs text-muted-foreground">
-                +2 deze maand
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totaal Budget</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">€{(mockData.totalBudget / 1000000).toFixed(1)}M</div>
-              <p className="text-xs text-muted-foreground">
-                +8% t.o.v. vorig kwartaal
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Voortgang</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{mockData.completionRate}%</div>
-              <Progress value={mockData.completionRate} className="mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Openstaande Taken</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{mockData.pendingTasks}</div>
-              <p className="text-xs text-red-600">
-                {mockData.overdueItems} over deadline
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6 mb-8">
+        <Tabs defaultValue="overzicht" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Folder className="h-4 w-4" />
-              Overzicht
-            </TabsTrigger>
-            <TabsTrigger value="files" className="flex items-center gap-2">
-              <File className="h-4 w-4" />
-              Bestanden
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Projecten
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Meldingen
-            </TabsTrigger>
+            <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+            <TabsTrigger value="bestanden">Bestanden</TabsTrigger>
+            <TabsTrigger value="projecten">Projecten</TabsTrigger>
+            <TabsTrigger value="taken">Openstaande Taken</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab - Project overzicht */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overzicht" className="space-y-8">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Actieve Projecten</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{mockData.activeProjects}</div>
+                  <p className="text-xs text-muted-foreground">+1 deze maand</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Totaal Budget</CardTitle>
+                  <Euro className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">€{(mockData.totalBudget / 1000000).toFixed(1)}M</div>
+                  <p className="text-xs text-muted-foreground">75% uitgegeven</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Voortgang</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{mockData.completionRate}%</div>
+                  <Progress value={mockData.completionRate} className="mt-2" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Openstaande Taken</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{mockData.pendingTasks}</div>
+                  <p className="text-xs text-red-600">3 kritiek</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Project Overview */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Project Overzicht
-                </CardTitle>
+                <CardTitle>Project Overzicht</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-semibold text-blue-900">Project Status</h4>
-                      <p className="text-blue-700">Actief - {mockData.completionRate}% voltooid</p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-semibold text-green-900">Team</h4>
-                      <p className="text-green-700">{mockData.teamMembers} teamleden actief</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Planning Status</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Fundering</span>
+                        <Badge variant="secondary">Voltooid</Badge>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Ruwbouw</span>
+                        <Badge variant="secondary">In uitvoering</Badge>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Afbouw</span>
+                        <Badge variant="outline">Gepland</Badge>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <h4 className="font-semibold text-yellow-900">Openstaande Taken</h4>
-                    <p className="text-yellow-700">{mockData.pendingTasks} taken, waarvan {mockData.overdueItems} over deadline</p>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Teamleden</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span className="text-sm">{mockData.teamMembers} actieve leden</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span className="text-sm">3 meetings deze week</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Kritieke Metrics</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Kwaliteitscore</span>
+                        <span className="font-medium">8.5/10</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Deadline adherence</span>
+                        <span className="font-medium">92%</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Risico niveau</span>
+                        <Badge variant="secondary">Laag</Badge>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Integrated Tools */}
+            {/* Tool Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {integratedTools.map((tool) => (
                 <Card key={tool.name} className="hover:shadow-lg transition-shadow">
@@ -685,37 +671,6 @@ const Dashboard = () => {
                         <span className="text-sm text-muted-foreground">Projecten</span>
                         <span className="font-semibold">{tool.projects.length}</span>
                       </div>
-                      
-                      {/* Upload knop */}
-                      <div className="pt-2">
-                        <input
-                          type="file"
-                          onChange={(e) => handleFileUpload(tool.name.toLowerCase().replace(' ', ''), e)}
-                          style={{ display: 'none' }}
-                          id={`upload-${tool.name}`}
-                          accept=".dwg,.rvt,.mpp,.ast,.xlsx,.pdf"
-                        />
-                        <label htmlFor={`upload-${tool.name}`}>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            disabled={uploading[tool.name.toLowerCase().replace(' ', '')]}
-                          >
-                            {uploading[tool.name.toLowerCase().replace(' ', '')] ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                                Uploaden...
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="h-4 w-4 mr-2" />
-                                Bestand toevoegen
-                              </>
-                            )}
-                          </Button>
-                        </label>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -723,57 +678,21 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Overview Tab - Geïntegreerde Tools Overzicht */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="bestanden" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Project Overzicht
+                  <File className="h-5 w-5" />
+                  Alle Bestanden ({allFiles.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <h4 className="font-semibold text-blue-900">Project Status</h4>
-                      <p className="text-blue-700">Actief - {mockData.completionRate}% voltooid</p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <h4 className="font-semibold text-green-900">Team</h4>
-                      <p className="text-green-700">{mockData.teamMembers} teamleden actief</p>
-                    </div>
+                {allFiles.length === 0 ? (
+                  <div className="text-center py-8">
+                    <File className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">Geen bestanden gevonden</p>
                   </div>
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <h4 className="font-semibold text-yellow-900">Openstaande Taken</h4>
-                    <p className="text-yellow-700">{mockData.pendingTasks} taken, waarvan {mockData.overdueItems} over deadline</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Files Tab - Alle bestanden van geïntegreerde tools */}
-          <TabsContent value="files" className="space-y-6">
-            {allFiles.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <File className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Geen bestanden gevonden</h3>
-                  <p className="text-muted-foreground">
-                    Koppel tools om bestanden te bekijken
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <File className="h-5 w-5" />
-                    Alle Bestanden ({allFiles.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                ) : (
                   <div className="space-y-4">
                     {allFiles.map((file) => (
                       <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -813,108 +732,47 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Projects Tab - Alle projecten van geïntegreerde tools */}
-          <TabsContent value="projects" className="space-y-6">
-            {allProjects.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Geen projecten gevonden</h3>
-                  <p className="text-muted-foreground">
-                    Koppel tools om projecten te bekijken
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allProjects.map((project) => (
-                  <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{project.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm text-muted-foreground">Voortgang</span>
-                            <span className="text-sm font-medium">{project.progress}%</span>
-                          </div>
-                          <Progress value={project.progress} className="h-2" />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Badge 
-                            variant={project.status === 'ahead' ? 'default' : project.status === 'delayed' ? 'destructive' : 'secondary'}
-                            className={getStatusColor(project.status)}
-                          >
-                            {getStatusText(project.status)}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            ID: {project.id}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+          <TabsContent value="projecten" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Project details sectie</p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
+          <TabsContent value="taken" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Tool Meldingen ({integratedTools.length > 0 ? 'Actief' : 'Geen tools gekoppeld'})
+                  <AlertTriangle className="h-5 w-5" />
+                  Openstaande Taken ({mockData.pendingTasks})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {integratedTools.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">Koppel tools om meldingen te ontvangen</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {integratedTools.map((tool) => (
-                      <div key={tool.name} className="p-4 border rounded-lg">
-                        <div className="flex items-center gap-2 mb-3">
-                          {React.createElement(tool.icon, { className: "h-4 w-4" })}
-                          <h4 className="font-medium">{tool.name}</h4>
-                          <Badge variant="secondary">{tool.files.length} bestanden</Badge>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                            <FileText className="h-4 w-4 text-blue-600 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-blue-800">Nieuwe bestanden beschikbaar</p>
-                              <p className="text-sm text-blue-600">{tool.files.length} bestanden geladen</p>
-                              <p className="text-xs text-blue-500 mt-1">Vandaag</p>
-                            </div>
-                          </div>
-                          {tool.projects.length > 0 && (
-                            <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded">
-                              <TrendingUp className="h-4 w-4 text-green-600 mt-0.5" />
-                              <div>
-                                <p className="font-medium text-green-800">Projecten geladen</p>
-                                <p className="text-sm text-green-600">{tool.projects.length} projecten beschikbaar</p>
-                                <p className="text-xs text-green-500 mt-1">Vandaag</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Taak {i}: Review van tekeningen</p>
+                        <p className="text-sm text-muted-foreground">Deadline: {new Date(Date.now() + i * 24 * 60 * 60 * 1000).toLocaleDateString('nl-NL')}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <Badge variant={i <= 3 ? "destructive" : "secondary"}>
+                        {i <= 3 ? "Kritiek" : "Normaal"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

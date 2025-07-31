@@ -110,9 +110,10 @@ const FileImportDialog = ({ projectId, connectedTools, onFileImported }: FileImp
 
     const toolId = TOOL_MAPPINGS[detectedTool as keyof typeof TOOL_MAPPINGS];
     console.log('Tool ID:', toolId);
+    console.log('Connected tools:', connectedTools);
     
-    // Check of tool gekoppeld is aan project
-    if (!connectedTools.includes(toolId)) {
+    // Check of tool gekoppeld is aan project (check zowel toolId als detectedTool)
+    if (!connectedTools.includes(toolId) && !connectedTools.includes(detectedTool)) {
       console.log('Tool not connected:', toolId);
       
       // Demo modus: toon waarschuwing maar ga door met import

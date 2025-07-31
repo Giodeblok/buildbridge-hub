@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter, Folder, File, Download, Eye, Upload, Plus } from "lucide-react";
+import { TrendingUp, Users, Clock, AlertTriangle, Calendar, Box, FileText, Euro, Bell, Filter, Folder, File, Download, Eye, Upload, Plus, CheckCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "react-router-dom";
@@ -54,146 +54,89 @@ const Dashboard = () => {
   const astaToken = localStorage.getItem(ASTA_TOKEN_KEY);
   const revitToken = localStorage.getItem(REVIT_TOKEN_KEY);
 
-  // Mock bestanden per tool (fallback)
-  const mockFiles: { [key: string]: ToolFile[] } = {
-    autocad: [
-      {
-        id: 'ac-001',
-        name: 'Plattegrond_BG.dwg',
-        type: 'DWG',
-        size: '2.4 MB',
-        lastModified: '2024-02-14T10:30:00Z',
-        status: 'active',
-        tool: 'AutoCAD'
-      },
-      {
-        id: 'ac-002',
-        name: 'Sectie_A-A.dwg',
-        type: 'DWG',
-        size: '1.8 MB',
-        lastModified: '2024-02-13T15:45:00Z',
-        status: 'active',
-        tool: 'AutoCAD'
-      }
-    ],
-    msproject: [
-      {
-        id: 'ms-001',
-        name: 'Wooncomplex_Planning.mpp',
-        type: 'MPP',
-        size: '1.2 MB',
-        lastModified: '2024-02-14T08:15:00Z',
-        status: 'active',
-        tool: 'MS Project'
-      },
-      {
-        id: 'ms-002',
-        name: 'Resource_Planning.mpp',
-        type: 'MPP',
-        size: '0.8 MB',
-        lastModified: '2024-02-13T14:30:00Z',
-        status: 'active',
-        tool: 'MS Project'
-      }
-    ],
-    asta: [
-      {
-        id: 'asta-001',
-        name: 'Wooncomplex_Planning.ast',
-        type: 'AST',
-        size: '3.2 MB',
-        lastModified: '2024-02-14T09:15:00Z',
-        status: 'active',
-        tool: 'Asta Powerproject'
-      },
-      {
-        id: 'asta-002',
-        name: 'Resource_Planning.ast',
-        type: 'AST',
-        size: '1.8 MB',
-        lastModified: '2024-02-13T16:30:00Z',
-        status: 'active',
-        tool: 'Asta Powerproject'
-      }
-    ],
-    revit: [
-      {
-        id: 'rv-001',
-        name: 'BIM_Model.rvt',
-        type: 'RVT',
-        size: '45.2 MB',
-        lastModified: '2024-02-14T11:20:00Z',
-        status: 'active',
-        tool: 'Revit'
-      },
-      {
-        id: 'rv-002',
-        name: 'Families_Collectie.rfa',
-        type: 'RFA',
-        size: '12.8 MB',
-        lastModified: '2024-02-13T16:45:00Z',
-        status: 'active',
-        tool: 'Revit'
-      }
-    ]
-  };
+  // Geen mock bestanden meer - alleen echte data
 
   // Detecteer geïntegreerde tools
   useEffect(() => {
     const tools: IntegratedTool[] = [];
     
-    if (autocadToken) {
-      tools.push({
-        name: 'AutoCAD',
-        icon: FileText,
-        token: autocadToken,
-        projects: autocadProjects,
-        files: autocadFiles.length > 0 ? autocadFiles : mockFiles.autocad || []
-      });
-    }
+    // Haal projectgegevens op uit localStorage
+    const savedProjects = localStorage.getItem('projects');
+    const projects = savedProjects ? JSON.parse(savedProjects) : [];
+    const currentProject = projects.find((p: any) => p.id === projectId);
     
-    if (msToken) {
-      tools.push({
-        name: 'MS Project',
-        icon: Calendar,
-        token: msToken,
-        projects: msProjects,
-        files: mockFiles.msproject
-      });
-    }
-    
-    if (astaToken) {
-      tools.push({
-        name: 'Asta Powerproject',
-        icon: Calendar,
-        token: astaToken,
-        projects: astaProjects,
-        files: astaFiles.length > 0 ? astaFiles : mockFiles.asta || []
-      });
-    }
-    
-    if (revitToken) {
-      tools.push({
-        name: 'Revit',
-        icon: Box,
-        token: revitToken,
-        projects: revitProjects,
-        files: mockFiles.revit
+    // Bepaal connectedTools op basis van het project, niet op basis van tokens
+    if (currentProject && currentProject.connectedTools) {
+      console.log('Project connectedTools:', currentProject.connectedTools);
+      setConnectedTools(currentProject.connectedTools);
+      
+      // Voeg alleen tools toe die daadwerkelijk gekoppeld zijn aan dit project
+      currentProject.connectedTools.forEach((toolName: string) => {
+        console.log('Processing tool:', toolName);
+        switch(toolName) {
+          case 'AutoCAD':
+            tools.push({
+              name: 'AutoCAD',
+              icon: FileText,
+              token: autocadToken,
+              projects: autocadProjects,
+              files: autocadFiles
+            });
+            break;
+          case 'MS Project':
+            tools.push({
+              name: 'MS Project',
+              icon: Calendar,
+              token: msToken,
+              projects: msProjects,
+              files: []
+            });
+            break;
+          case 'Asta Powerproject':
+            tools.push({
+              name: 'Asta Powerproject',
+              icon: Calendar,
+              token: astaToken,
+              projects: astaProjects,
+              files: astaFiles
+            });
+            break;
+          case 'Autodesk Revit':
+            tools.push({
+              name: 'Autodesk Revit',
+              icon: Box,
+              token: revitToken,
+              projects: revitProjects,
+              files: []
+            });
+            break;
+          case 'Solibri':
+            tools.push({
+              name: 'Solibri',
+              icon: CheckCircle,
+              token: null,
+              projects: [],
+              files: []
+            });
+            break;
+          default:
+            // Voor andere tools die mogelijk gekoppeld zijn
+            console.log('Tool not found in switch, adding as default:', toolName);
+            tools.push({
+              name: toolName,
+              icon: FileText,
+              token: null,
+              projects: [],
+              files: []
+            });
+            break;
+        }
       });
     }
     
     setIntegratedTools(tools);
     setAllFiles([...tools.flatMap(tool => tool.files), ...importedFiles]);
-    setConnectedTools(tools.map(tool => {
-      switch(tool.name) {
-        case 'AutoCAD': return 'autocad';
-        case 'MS Project': return 'msproject';
-        case 'Asta Powerproject': return 'asta';
-        case 'Revit': return 'revit';
-        default: return '';
-      }
-    }).filter(Boolean));
-  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles, importedFiles]);
+  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles, importedFiles, projectId]);
 
   useEffect(() => {
     // Real-time subscription voor project updates
@@ -598,14 +541,14 @@ const Dashboard = () => {
     ...((revitToken && revitProjects.length > 0) ? revitProjects : [])
   ];
 
-  // Mock data for integrated tools - in real app this would come from localStorage or API
-  const mockData = {
-    activeProjects: 3,
-    totalBudget: 2400000,
-    completionRate: 67,
-    pendingTasks: 12,
-    teamMembers: 15,
-    overdueItems: 3
+  // Echte data berekening
+  const realData = {
+    activeProjects: allProjects.length,
+    totalBudget: 0, // Zou uit API komen
+    completionRate: 0, // Zou uit API komen
+    pendingTasks: 0, // Zou uit API komen
+    teamMembers: 0, // Zou uit API komen
+    overdueItems: 0 // Zou uit API komen
   };
 
   return (
@@ -638,7 +581,7 @@ const Dashboard = () => {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockData.activeProjects}</div>
+                  <div className="text-2xl font-bold">{realData.activeProjects}</div>
                   <p className="text-xs text-muted-foreground">+1 deze maand</p>
                 </CardContent>
               </Card>
@@ -649,7 +592,7 @@ const Dashboard = () => {
                   <Euro className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€{(mockData.totalBudget / 1000000).toFixed(1)}M</div>
+                  <div className="text-2xl font-bold">€{(realData.totalBudget / 1000000).toFixed(1)}M</div>
                   <p className="text-xs text-muted-foreground">75% uitgegeven</p>
                 </CardContent>
               </Card>
@@ -660,8 +603,8 @@ const Dashboard = () => {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockData.completionRate}%</div>
-                  <Progress value={mockData.completionRate} className="mt-2" />
+                  <div className="text-2xl font-bold">{realData.completionRate}%</div>
+                  <Progress value={realData.completionRate} className="mt-2" />
                 </CardContent>
               </Card>
 
@@ -671,7 +614,7 @@ const Dashboard = () => {
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockData.pendingTasks}</div>
+                  <div className="text-2xl font-bold">{realData.pendingTasks}</div>
                   <p className="text-xs text-red-600">3 kritiek</p>
                 </CardContent>
               </Card>
@@ -706,7 +649,7 @@ const Dashboard = () => {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        <span className="text-sm">{mockData.teamMembers} actieve leden</span>
+                        <span className="text-sm">{realData.teamMembers} actieve leden</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -738,7 +681,7 @@ const Dashboard = () => {
             {/* Tool Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {integratedTools
-                .filter(tool => connectedTools.includes(tool.name.toLowerCase().replace(' ', '')))
+                .filter(tool => connectedTools.includes(tool.name))
                 .map((tool) => (
                 <Card key={tool.name} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
@@ -864,7 +807,7 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
-                  Openstaande Taken ({mockData.pendingTasks})
+                  Openstaande Taken ({realData.pendingTasks})
                 </CardTitle>
               </CardHeader>
               <CardContent>

@@ -49,22 +49,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('projects');
     if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: "1",
-        name: "Nieuwbouw Kantoorcomplex Amsterdam",
-        description: "Modern kantoorgebouw met 15 verdiepingen in Amsterdam Noord",
-        createdAt: "2024-01-15",
-        connectedTools: ["MS Project", "Autodesk Revit", "AFAS"]
-      },
-      {
-        id: "2", 
-        name: "Renovatie Ziekenhuis Rotterdam",
-        description: "Verbouwing van de zuidvleugel met nieuwe operatiekamers",
-        createdAt: "2024-02-20",
-        connectedTools: ["Asta Powerproject", "AutoCAD", "Bluebeam Revu"]
-      }
-    ];
+    return [];
   });
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -75,6 +60,7 @@ export default function Dashboard() {
   });
   const [userTools, setUserTools] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editProject, setEditProject] = useState<Project | null>(null);
 
   const handleAddProject = () => {
     if (!newProject.name.trim()) {
@@ -120,6 +106,44 @@ export default function Dashboard() {
 
   const openProject = (projectId: string) => {
     navigate(`/project/${projectId}`);
+  };
+
+  const handleEditProject = (project: Project) => {
+    // Vul het nieuwe project formulier met de bestaande projectgegevens
+    setNewProject({
+      name: project.name,
+      description: project.description,
+      selectedTools: project.connectedTools
+    });
+    setEditProject(project);
+    setIsAddDialogOpen(true);
+  };
+
+  const handleEditProjectSave = () => {
+    if (!editProject) return;
+    
+    // Update het project met de nieuwe gegevens
+    const updatedProject = {
+      ...editProject,
+      name: newProject.name,
+      description: newProject.description,
+      connectedTools: newProject.selectedTools
+    };
+    
+    setProjects(prev => {
+      const updated = prev.map(p => p.id === editProject.id ? updatedProject : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      return updated;
+    });
+    
+    // Reset het formulier
+    setNewProject({
+      name: '',
+      description: '',
+      selectedTools: []
+    });
+    setEditProject(null);
+    setIsAddDialogOpen(false);
   };
 
   // Laad gekoppelde tools van gebruiker
@@ -182,6 +206,21 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem('projects');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const filtered = parsed.filter((project: Project) =>
+        !project.name.includes('Nieuwbouw Kantoorcomplex Amsterdam') &&
+        !project.name.includes('Renovatie Ziekenhuis Rotterdam')
+      );
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem('projects', JSON.stringify(filtered));
+        setProjects(filtered);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('projects', JSON.stringify(projects));
   }, [projects]);
 
@@ -208,7 +247,7 @@ export default function Dashboard() {
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Nieuw Project Toevoegen</DialogTitle>
+                <DialogTitle>{editProject ? 'Project Bewerken' : 'Nieuw Project Toevoegen'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -269,15 +308,23 @@ export default function Dashboard() {
                 <div className="flex justify-end gap-2">
                   <Button 
                     variant="outline" 
-                    onClick={() => setIsAddDialogOpen(false)}
+                    onClick={() => {
+                      setIsAddDialogOpen(false);
+                      setEditProject(null);
+                      setNewProject({
+                        name: '',
+                        description: '',
+                        selectedTools: []
+                      });
+                    }}
                   >
                     Annuleren
                   </Button>
                   <Button 
-                    onClick={handleAddProject}
+                    onClick={editProject ? handleEditProjectSave : handleAddProject}
                     className="bg-construction-primary hover:bg-construction-primary/90"
                   >
-                    Project Toevoegen
+                    {editProject ? 'Project Bijwerken' : 'Project Toevoegen'}
                   </Button>
                 </div>
               </div>
@@ -358,7 +405,7 @@ export default function Dashboard() {
                         <FolderOpen className="h-4 w-4 mr-2" />
                         Openen
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleEditProject(project)}>
                         <Settings className="h-4 w-4" />
                       </Button>
                     </div>
@@ -369,6 +416,8 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+
     </div>
   );
 }

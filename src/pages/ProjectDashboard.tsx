@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import FileImportDialog from "@/components/FileImportDialog";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
@@ -45,6 +46,8 @@ const Dashboard = () => {
   const [autocadFiles, setAutocadFiles] = useState<ToolFile[]>([]);
   const [astaFiles, setAstaFiles] = useState<ToolFile[]>([]);
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
+  const [importedFiles, setImportedFiles] = useState<ToolFile[]>([]);
+  const [connectedTools, setConnectedTools] = useState<string[]>([]);
   
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
@@ -180,8 +183,17 @@ const Dashboard = () => {
     }
     
     setIntegratedTools(tools);
-    setAllFiles(tools.flatMap(tool => tool.files));
-  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles]);
+    setAllFiles([...tools.flatMap(tool => tool.files), ...importedFiles]);
+    setConnectedTools(tools.map(tool => {
+      switch(tool.name) {
+        case 'AutoCAD': return 'autocad';
+        case 'MS Project': return 'msproject';
+        case 'Asta Powerproject': return 'asta';
+        case 'Revit': return 'revit';
+        default: return '';
+      }
+    }).filter(Boolean));
+  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles, importedFiles]);
 
   useEffect(() => {
     // Real-time subscription voor project updates
@@ -501,9 +513,81 @@ const Dashboard = () => {
     }
   };
 
+  // Load imported files from database
+  const loadImportedFiles = async () => {
+    if (!projectId) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('project-files')
+        .list(projectId, { limit: 100 });
+
+      if (error) {
+        console.error('Error loading imported files:', error);
+        return;
+      }
+
+      const files: ToolFile[] = [];
+      
+      for (const folder of data) {
+        if (folder.name && ['autocad', 'msproject', 'asta', 'revit'].includes(folder.name)) {
+          const { data: folderFiles } = await supabase.storage
+            .from('project-files')
+            .list(`${projectId}/${folder.name}`, { limit: 100 });
+
+          if (folderFiles) {
+            const toolFiles = folderFiles.map(file => ({
+              id: `imported-${file.name}`,
+              name: file.name.replace(/^\d+_/, ''), // Remove timestamp prefix
+              type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
+              size: file.metadata?.size ? formatFileSize(file.metadata.size) : 'Unknown',
+              lastModified: file.updated_at || new Date().toISOString(),
+              status: 'active' as const,
+              tool: getToolDisplayName(folder.name)
+            }));
+            files.push(...toolFiles);
+          }
+        }
+      }
+
+      setImportedFiles(files);
+    } catch (error) {
+      console.error('Error loading imported files:', error);
+    }
+  };
+
+  const handleFileImported = () => {
+    loadImportedFiles();
+  };
+
+  const handleOpenFile = async (file: ToolFile) => {
+    // Check if this is an imported file
+    if (file.id.startsWith('imported-')) {
+      // For imported files, try to open them using the appropriate tool
+      const toolId = connectedTools.find(tool => {
+        const toolName = getToolDisplayName(tool);
+        return toolName === file.tool;
+      });
+      
+      if (toolId) {
+        toast("Bestand wordt geopend...", { description: `${file.name} wordt geopend in ${file.tool}` });
+        // Here you would implement the actual file opening logic
+        // This could involve calling the appropriate tool's API to open the file
+      } else {
+        toast("Tool niet gevonden", { 
+          description: `${file.tool} is niet meer gekoppeld aan dit project.`,
+        });
+      }
+    } else {
+      // Use existing preview/download logic for API files
+      handlePreviewFile(file);
+    }
+  };
+
   useEffect(() => {
     loadProjectData();
     loadFilesFromStorage();
+    loadImportedFiles();
   }, [projectId]);
 
   // Combineer projecten
@@ -681,9 +765,18 @@ const Dashboard = () => {
           <TabsContent value="bestanden" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <File className="h-5 w-5" />
-                  Alle Bestanden ({allFiles.length})
+                <CardTitle className="flex items-center gap-2 justify-between">
+                  <div className="flex items-center gap-2">
+                    <File className="h-5 w-5" />
+                    Alle Bestanden ({allFiles.length})
+                  </div>
+                  {projectId && (
+                    <FileImportDialog 
+                      projectId={projectId}
+                      connectedTools={connectedTools}
+                      onFileImported={handleFileImported}
+                    />
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -701,12 +794,21 @@ const Dashboard = () => {
                             <File className="h-4 w-4 text-blue-600" />
                           </div>
                           <div>
-                            <p className="font-medium">{file.name}</p>
+                            <button 
+                              className="font-medium text-left hover:text-primary transition-colors"
+                              onClick={() => handleOpenFile(file)}
+                              title="Klik om bestand te openen"
+                            >
+                              {file.name}
+                            </button>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span>{file.tool}</span>
                               <span>{file.type}</span>
                               {file.size && <span>{file.size}</span>}
                               <span>{new Date(file.lastModified).toLocaleDateString('nl-NL')}</span>
+                              {file.id.startsWith('imported-') && (
+                                <Badge variant="outline" className="text-xs">Geïmporteerd</Badge>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -714,20 +816,24 @@ const Dashboard = () => {
                           <Badge variant={file.status === 'active' ? 'default' : 'secondary'}>
                             {file.status === 'active' ? 'Actief' : 'Archief'}
                           </Badge>
-                          <button 
-                            className="p-2 hover:bg-muted rounded"
-                            onClick={() => handlePreviewFile(file)}
-                            title="Bekijk preview"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button 
-                            className="p-2 hover:bg-muted rounded"
-                            onClick={() => handleDownloadFile(file)}
-                            title="Download bestand"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
+                          {!file.id.startsWith('imported-') && (
+                            <>
+                              <button 
+                                className="p-2 hover:bg-muted rounded"
+                                onClick={() => handlePreviewFile(file)}
+                                title="Bekijk preview"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button 
+                                className="p-2 hover:bg-muted rounded"
+                                onClick={() => handleDownloadFile(file)}
+                                title="Download bestand"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}

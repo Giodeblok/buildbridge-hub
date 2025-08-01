@@ -12,6 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Railway gebruikt process.env.PORT
+const PORT = process.env.PORT || 4000;
+
 // Health check endpoint voor Railway
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -1402,8 +1405,7 @@ app.get('/n8n/status', (req, res) => {
   });
 });
 
-app.listen(4000, () => {
-  console.log('Auth server running on http://localhost:4000');
-  console.log('N8N Callback URL: https://shaky-dots-hope.loca.lt/n8n/callback');
-  console.log('N8N Webhook URL: https://shaky-dots-hope.loca.lt/n8n/webhook');
+app.listen(PORT, () => {
+  console.log(`Auth server running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
 }); 

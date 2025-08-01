@@ -1,5 +1,0 @@
-[33mcf84029[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix tool cards display and file import dialog - Tool cards now show only project-specific tools - Fixed file import dialog to recognize connected tools correctly - Added debug logging for troubleshooting - Updated tool name matching logic
-[33m96838db[m Fix file import dialog and improve tool management - Remove bucket check to simplify file upload - Improve error messages for better debugging - Fix tool cards to only show connected tools - Update disconnect/reconnect functionality
-[33mca95761[m Implement file import functionality
-[33m1666f85[m Connect to Supabase project
-[33m2aea6b2[m Refactor dashboard layout

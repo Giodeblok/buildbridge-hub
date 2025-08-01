@@ -10,6 +10,8 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import FileImportDialog from "@/components/FileImportDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { X, Maximize2, Download as DownloadIcon, AlertCircle, Loader2 } from "lucide-react";
 
 const MS_TOKEN_KEY = "msproject_token";
 const AUTOCAD_TOKEN_KEY = "autocad_token";
@@ -19,6 +21,7 @@ const REVIT_TOKEN_KEY = "revit_token";
 interface ToolFile {
   id: string;
   name: string;
+  originalName?: string; // For imported files, keep original filename with timestamp
   type: string;
   size?: string;
   lastModified: string;
@@ -48,6 +51,26 @@ const Dashboard = () => {
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
   const [importedFiles, setImportedFiles] = useState<ToolFile[]>([]);
   const [connectedTools, setConnectedTools] = useState<string[]>([]);
+  
+  // State voor file preview modal met responsive design en error handling
+  const [previewModal, setPreviewModal] = useState<{
+    open: boolean;
+    file: ToolFile | null;
+    fileUrl: string | null;
+    fileType: string | null;
+    loading: boolean;
+    error: string | null;
+  }>({
+    open: false,
+    file: null,
+    fileUrl: null,
+    fileType: null,
+    loading: false,
+    error: null
+  });
+
+  // State voor responsive design
+  const [isMobile, setIsMobile] = useState(false);
   
   const msToken = localStorage.getItem(MS_TOKEN_KEY);
   const autocadToken = localStorage.getItem(AUTOCAD_TOKEN_KEY);
@@ -98,32 +121,21 @@ const Dashboard = () => {
               icon: Calendar,
               token: astaToken,
               projects: astaProjects,
-              files: astaFiles
+              files: []
             });
             break;
-          case 'Autodesk Revit':
+          case 'Revit':
             tools.push({
-              name: 'Autodesk Revit',
-              icon: Box,
+              name: 'Revit',
+              icon: FileText,
               token: revitToken,
               projects: revitProjects,
               files: []
             });
             break;
-          case 'Solibri':
+          case 'PDF':
             tools.push({
-              name: 'Solibri',
-              icon: CheckCircle,
-              token: null,
-              projects: [],
-              files: []
-            });
-            break;
-          default:
-            // Voor andere tools die mogelijk gekoppeld zijn
-            console.log('Tool not found in switch, adding as default:', toolName);
-            tools.push({
-              name: toolName,
+              name: 'PDF',
               icon: FileText,
               token: null,
               projects: [],
@@ -135,8 +147,28 @@ const Dashboard = () => {
     }
     
     setIntegratedTools(tools);
-    setAllFiles([...tools.flatMap(tool => tool.files), ...importedFiles]);
-  }, [autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles, astaFiles, importedFiles, projectId]);
+  }, [projectId, autocadToken, msToken, astaToken, revitToken, autocadProjects, msProjects, astaProjects, revitProjects, autocadFiles]);
+
+  // Check screen size for responsive design
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // Memory management: Cleanup blob URLs on component unmount
+  useEffect(() => {
+    return () => {
+      if (previewModal.fileUrl) {
+        URL.revokeObjectURL(previewModal.fileUrl);
+      }
+    };
+  }, [previewModal.fileUrl]);
 
   useEffect(() => {
     // Real-time subscription voor project updates
@@ -407,6 +439,7 @@ const Dashboard = () => {
       case 'msproject': return 'MS Project';
       case 'asta': return 'Asta Powerproject';
       case 'revit': return 'Revit';
+      case 'pdf': return 'PDF';
       default: return toolId;
     }
   };
@@ -429,7 +462,7 @@ const Dashboard = () => {
       const toolFiles: { [key: string]: ToolFile[] } = {};
       
       for (const folder of data) {
-        if (folder.name && ['autocad', 'msproject', 'asta', 'revit'].includes(folder.name)) {
+        if (folder.name && ['autocad', 'msproject', 'asta', 'revit', 'pdf'].includes(folder.name)) {
           const { data: files } = await supabase.storage
             .from('project-files')
             .list(`${projectId}/${folder.name}`, { limit: 100 });
@@ -473,7 +506,7 @@ const Dashboard = () => {
       const files: ToolFile[] = [];
       
       for (const folder of data) {
-        if (folder.name && ['autocad', 'msproject', 'asta', 'revit'].includes(folder.name)) {
+        if (folder.name && ['autocad', 'msproject', 'asta', 'revit', 'pdf'].includes(folder.name)) {
           const { data: folderFiles } = await supabase.storage
             .from('project-files')
             .list(`${projectId}/${folder.name}`, { limit: 100 });
@@ -481,7 +514,8 @@ const Dashboard = () => {
           if (folderFiles) {
             const toolFiles = folderFiles.map(file => ({
               id: `imported-${file.name}`,
-              name: file.name.replace(/^\d+_/, ''), // Remove timestamp prefix
+              name: file.name.replace(/^\d+_/, ''), // Remove timestamp prefix for display
+              originalName: file.name, // Keep original name for download
               type: file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN',
               size: file.metadata?.size ? formatFileSize(file.metadata.size) : 'Unknown',
               lastModified: file.updated_at || new Date().toISOString(),
@@ -493,6 +527,7 @@ const Dashboard = () => {
         }
       }
 
+      console.log('Imported files loaded:', files);
       setImportedFiles(files);
     } catch (error) {
       console.error('Error loading imported files:', error);
@@ -503,27 +538,182 @@ const Dashboard = () => {
     loadImportedFiles();
   };
 
-  const handleOpenFile = async (file: ToolFile) => {
-    // Check if this is an imported file
-    if (file.id.startsWith('imported-')) {
-      // For imported files, try to open them using the appropriate tool
-      const toolId = connectedTools.find(tool => {
-        const toolName = getToolDisplayName(tool);
-        return toolName === file.tool;
-      });
-      
-      if (toolId) {
-        toast("Bestand wordt geopend...", { description: `${file.name} wordt geopend in ${file.tool}` });
-        // Here you would implement the actual file opening logic
-        // This could involve calling the appropriate tool's API to open the file
-      } else {
-        toast("Tool niet gevonden", { 
-          description: `${file.tool} is niet meer gekoppeld aan dit project.`,
+  // Helper function to get MIME type
+  const getMimeType = (fileType: string): string => {
+    const type = fileType.toLowerCase();
+    switch (type) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'dwg':
+      case 'dxf':
+        return 'application/acad';
+      case 'rvt':
+      case 'rfa':
+      case 'rte':
+        return 'application/octet-stream';
+      case 'mpp':
+      case 'mpx':
+        return 'application/vnd.ms-project';
+      case 'pp':
+      case 'ppx':
+        return 'application/octet-stream';
+      default:
+        return 'application/octet-stream';
+    }
+  };
+
+  // Function to close preview modal and clean up (Memory management)
+  const closePreviewModal = () => {
+    if (previewModal.fileUrl) {
+      URL.revokeObjectURL(previewModal.fileUrl);
+    }
+    setPreviewModal({
+      open: false,
+      file: null,
+      fileUrl: null,
+      fileType: null,
+      loading: false,
+      error: null
+    });
+  };
+
+  // Function to download file from preview modal
+  const downloadFileFromPreview = () => {
+    if (previewModal.fileUrl && previewModal.file) {
+      try {
+        const link = document.createElement('a');
+        link.href = previewModal.fileUrl;
+        link.download = previewModal.file.name;
+        link.click();
+        
+        toast("Download gestart", { 
+          description: `${previewModal.file.name} wordt gedownload.` 
+        });
+      } catch (error) {
+        toast("Download mislukt", { 
+          description: "Er is een fout opgetreden bij het downloaden."
         });
       }
-    } else {
-      // Use existing preview/download logic for API files
-      handlePreviewFile(file);
+    }
+  };
+
+  // Function to open file in new tab
+  const openFileInNewTab = () => {
+    if (previewModal.fileUrl) {
+      try {
+        window.open(previewModal.fileUrl, '_blank');
+        toast("Bestand geopend", { 
+          description: `${previewModal.file?.name} is geopend in een nieuwe tab.` 
+        });
+      } catch (error) {
+        toast("Openen mislukt", { 
+          description: "Er is een fout opgetreden bij het openen in nieuwe tab."
+        });
+      }
+    }
+  };
+
+  const handleOpenFile = async (file: ToolFile) => {
+    try {
+      // Check if this is an imported file
+      if (file.id.startsWith('imported-')) {
+        // For imported files, try to open them using the appropriate method
+        // Find the tool ID by matching the tool name
+        let toolId = null;
+        if (file.tool === 'AutoCAD') {
+          toolId = 'autocad';
+        } else if (file.tool === 'MS Project') {
+          toolId = 'msproject';
+        } else if (file.tool === 'Asta Powerproject') {
+          toolId = 'asta';
+        } else if (file.tool === 'Revit') {
+          toolId = 'revit';
+        } else if (file.tool === 'PDF') {
+          toolId = 'pdf';
+        }
+        
+        if (toolId && connectedTools.includes(file.tool)) {
+          // Show loading state
+          setPreviewModal(prev => ({
+            ...prev,
+            open: true,
+            file: file,
+            loading: true,
+            error: null
+          }));
+
+          toast("Bestand wordt geladen...", { 
+            description: `${file.name} wordt voorbereid voor weergave.` 
+          });
+          
+          // Get the file from Supabase Storage
+          const fileName = file.originalName || file.name; // Use original name if available
+          const filePath = `${projectId}/${toolId}/${fileName}`;
+          console.log('Downloading file from path:', filePath); // Debug log
+          const { data, error } = await supabase.storage
+            .from('project-files')
+            .download(filePath);
+          
+          if (error) {
+            console.error('Supabase storage error:', error);
+            if (error.message) {
+              throw new Error(`Storage error: ${error.message}`);
+            } else {
+              throw new Error(`Bestand niet gevonden: ${fileName}`);
+            }
+          }
+          
+          if (!data) {
+            throw new Error('Geen bestandsdata ontvangen');
+          }
+          
+          // Create a blob URL and open the file
+          const blob = new Blob([data], { type: getMimeType(file.type) });
+          const url = URL.createObjectURL(blob);
+          
+          // Determine file type and set modal state
+          let fileType = 'other';
+          if (file.type.toLowerCase() === 'pdf') {
+            fileType = 'pdf';
+          } else if (file.type.toLowerCase() === 'dwg' || file.type.toLowerCase() === 'dxf') {
+            fileType = 'cad';
+          }
+          
+          setPreviewModal(prev => ({
+            ...prev,
+            fileUrl: url,
+            fileType: fileType,
+            loading: false,
+            error: null
+          }));
+
+          toast("Bestand geladen", { 
+            description: `${file.name} is klaar voor weergave.` 
+          });
+          
+        } else {
+          toast("Tool niet gevonden", { 
+            description: `${file.tool} is niet meer gekoppeld aan dit project.`
+          });
+        }
+      } else {
+        // Use existing preview/download logic for API files
+        handlePreviewFile(file);
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
+      
+      setPreviewModal(prev => ({
+        ...prev,
+        loading: false,
+        error: errorMessage
+      }));
+
+      toast("Fout bij openen bestand", { 
+        description: `Er is een fout opgetreden: ${errorMessage}`
+      });
     }
   };
 
@@ -532,6 +722,17 @@ const Dashboard = () => {
     loadFilesFromStorage();
     loadImportedFiles();
   }, [projectId]);
+
+  // Update allFiles wanneer bestanden veranderen
+  useEffect(() => {
+    const allFilesCombined = [
+      ...autocadFiles,
+      ...astaFiles,
+      ...importedFiles
+    ];
+    console.log('All files combined:', allFilesCombined);
+    setAllFiles(allFilesCombined);
+  }, [autocadFiles, astaFiles, importedFiles]);
 
   // Combineer projecten
   const allProjects = [
@@ -827,10 +1028,171 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+                  </Tabs>
+        </div>
+
+        {/* File Preview Modal - Responsive Design */}
+        <Dialog open={previewModal.open} onOpenChange={closePreviewModal}>
+          <DialogContent className={`${isMobile ? 'w-[95vw] h-[90vh]' : 'max-w-4xl max-h-[90vh]'} overflow-hidden`}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <File className="h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">{previewModal.file?.name}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {previewModal.fileType === 'pdf' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openFileInNewTab}
+                      title="Open in nieuwe tab"
+                      className="hidden sm:flex"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadFileFromPreview}
+                    title="Download bestand"
+                    className="hidden sm:flex"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={closePreviewModal}
+                    title="Sluiten"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-hidden">
+              {/* Loading State */}
+              {previewModal.loading && (
+                <div className="w-full h-[70vh] border rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <div className="text-center">
+                    <Loader2 className="h-16 w-16 mx-auto mb-4 text-blue-600 animate-spin" />
+                    <h3 className="text-lg font-semibold mb-2">Bestand laden...</h3>
+                    <p className="text-gray-600">{previewModal.file?.name}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error State */}
+              {previewModal.error && (
+                <div className="w-full h-[70vh] border rounded-lg overflow-hidden bg-red-50 flex items-center justify-center">
+                  <div className="text-center">
+                    <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+                    <h3 className="text-lg font-semibold mb-2 text-red-700">Fout bij laden bestand</h3>
+                    <p className="text-red-600 mb-4">{previewModal.error}</p>
+                    <div className="flex gap-2 justify-center">
+                      <Button onClick={closePreviewModal} variant="outline">
+                        Sluiten
+                      </Button>
+                      <Button onClick={() => handleOpenFile(previewModal.file!)}>
+                        Opnieuw proberen
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* PDF Viewer */}
+              {previewModal.fileType === 'pdf' && previewModal.fileUrl && !previewModal.loading && !previewModal.error && (
+                <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+                  <iframe
+                    src={`${previewModal.fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                    className="w-full h-full"
+                    title={previewModal.file?.name}
+                    onError={() => {
+                      setPreviewModal(prev => ({
+                        ...prev,
+                        error: 'PDF kan niet worden geladen'
+                      }));
+                    }}
+                  />
+                </div>
+              )}
+              
+              {/* CAD Viewer */}
+              {previewModal.fileType === 'cad' && !previewModal.loading && !previewModal.error && (
+                <div className="w-full h-[70vh] border rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <div className="text-center p-4">
+                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">CAD Bestand Preview</h3>
+                    <p className="text-gray-600 mb-4">
+                      {previewModal.file?.name} ({previewModal.file?.type.toUpperCase()})
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      CAD bestanden kunnen niet direct in de browser worden weergegeven.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <Button onClick={downloadFileFromPreview} className="w-full sm:w-auto">
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Download voor AutoCAD
+                      </Button>
+                      <Button variant="outline" onClick={openFileInNewTab} className="w-full sm:w-auto">
+                        <Maximize2 className="h-4 w-4 mr-2" />
+                        Open in nieuwe tab
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Other Files Viewer */}
+              {previewModal.fileType === 'other' && !previewModal.loading && !previewModal.error && (
+                <div className="w-full h-[70vh] border rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                  <div className="text-center p-4">
+                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">Bestand Preview</h3>
+                    <p className="text-gray-600 mb-4">
+                      {previewModal.file?.name} ({previewModal.file?.type.toUpperCase()})
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Dit bestandstype kan niet direct in de browser worden weergegeven.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <Button onClick={downloadFileFromPreview} className="w-full sm:w-auto">
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Download Bestand
+                      </Button>
+                      <Button variant="outline" onClick={openFileInNewTab} className="w-full sm:w-auto">
+                        <Maximize2 className="h-4 w-4 mr-2" />
+                        Open in nieuwe tab
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Mobile Action Buttons */}
+            {isMobile && previewModal.file && !previewModal.loading && !previewModal.error && (
+              <div className="flex gap-2 mt-4">
+                {previewModal.fileType === 'pdf' && (
+                  <Button onClick={openFileInNewTab} variant="outline" className="flex-1">
+                    <Maximize2 className="h-4 w-4 mr-2" />
+                    Nieuwe tab
+                  </Button>
+                )}
+                <Button onClick={downloadFileFromPreview} className="flex-1">
+                  <DownloadIcon className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default Dashboard;

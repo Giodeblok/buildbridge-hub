@@ -45,7 +45,7 @@ app.get('/me', (req, res) => {
 // Vervang deze waarden door je eigen Azure App Registration gegevens
 const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID || 'your-microsoft-client-id';
 const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET || 'your-microsoft-client-secret';
-const MICROSOFT_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/msproject/callback` : 'http://localhost:4000/msproject/callback';
+const MICROSOFT_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/msproject/callback` : 'https://shaky-dots-hope.loca.lt/msproject/callback';
 const MS_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
 const MS_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 const MS_SCOPES = 'offline_access user.read Tasks.Read Project.Read.All';
@@ -181,7 +181,7 @@ app.get('/user/tokens/:userId/:toolId', (req, res) => {
 // Echte Autodesk OAuth configuratie
 const AUTODESK_CLIENT_ID = process.env.AUTODESK_CLIENT_ID || 'your-autodesk-client-id';
 const AUTODESK_CLIENT_SECRET = process.env.AUTODESK_CLIENT_SECRET || 'your-autodesk-client-secret';
-const AUTODESK_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/autocad/callback` : 'http://localhost:4000/autocad/callback';
+const AUTODESK_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/autocad/callback` : 'https://buildbridge-hub-api.loca.lt/autocad/callback';
 const AUTODESK_AUTH_URL = 'https://developer.api.autodesk.com/authentication/v2/authorize';
 const AUTODESK_TOKEN_URL = 'https://developer.api.autodesk.com/authentication/v2/token';
 const AUTODESK_SCOPES = 'data:read data:write bucket:create bucket:read';
@@ -469,7 +469,7 @@ app.get('/autocad/files/:fileId/preview', async (req, res) => {
 // --- Asta Powerproject OAuth ---
 const ASTA_CLIENT_ID = process.env.ASTA_CLIENT_ID || 'your-asta-client-id';
 const ASTA_CLIENT_SECRET = process.env.ASTA_CLIENT_SECRET || 'your-asta-client-secret';
-const ASTA_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/asta/callback` : 'http://localhost:4000/asta/callback';
+const ASTA_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/asta/callback` : 'https://buildbridge-hub-api.loca.lt/asta/callback';
 const ASTA_AUTH_URL = 'https://login.astapowerproject.com/oauth/authorize';
 const ASTA_TOKEN_URL = 'https://login.astapowerproject.com/oauth/token';
 
@@ -629,7 +629,7 @@ app.get('/revit/auth', (req, res) => {
   const params = querystring.stringify({
     client_id: AUTODESK_CLIENT_ID,
     response_type: 'code',
-    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'http://localhost:4000/revit/callback',
+    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'https://buildbridge-hub-api.loca.lt/revit/callback',
     scope: AUTODESK_SCOPES,
     state: state
   });
@@ -647,7 +647,7 @@ app.get('/revit/callback', async (req, res) => {
       client_secret: AUTODESK_CLIENT_SECRET,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'http://localhost:4000/revit/callback'
+      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/revit/callback` : 'https://buildbridge-hub-api.loca.lt/revit/callback'
     }), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -717,7 +717,7 @@ app.get('/solibri/auth', (req, res) => {
   const params = querystring.stringify({
     client_id: AUTODESK_CLIENT_ID,
     response_type: 'code',
-    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'http://localhost:4000/solibri/callback',
+    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'https://buildbridge-hub-api.loca.lt/solibri/callback',
     scope: AUTODESK_SCOPES,
     state: state
   });
@@ -735,7 +735,7 @@ app.get('/solibri/callback', async (req, res) => {
       client_secret: AUTODESK_CLIENT_SECRET,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'http://localhost:4000/solibri/callback'
+      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/solibri/callback` : 'https://buildbridge-hub-api.loca.lt/solibri/callback'
     }), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -808,7 +808,7 @@ app.get('/excel/auth', (req, res) => {
   const params = querystring.stringify({
     client_id: MICROSOFT_CLIENT_ID,
     response_type: 'code',
-    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/excel/callback` : 'http://localhost:4000/excel/callback',
+    redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/excel/callback` : 'https://buildbridge-hub-api.loca.lt/excel/callback',
     response_mode: 'query',
     scope: MS_SCOPES,
     state: state,
@@ -826,7 +826,7 @@ app.get('/excel/callback', async (req, res) => {
       client_id: MICROSOFT_CLIENT_ID,
       client_secret: MICROSOFT_CLIENT_SECRET,
       code,
-      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/excel/callback` : 'http://localhost:4000/excel/callback',
+      redirect_uri: process.env.NGROK_URL ? `${process.env.NGROK_URL}/excel/callback` : 'https://buildbridge-hub-api.loca.lt/excel/callback',
       grant_type: 'authorization_code'
     }), {
       headers: {
@@ -882,7 +882,7 @@ app.get('/excel/projects', async (req, res) => {
 // --- WhatsApp OAuth (Meta API) ---
 const WHATSAPP_CLIENT_ID = process.env.WHATSAPP_CLIENT_ID || 'your-whatsapp-client-id';
 const WHATSAPP_CLIENT_SECRET = process.env.WHATSAPP_CLIENT_SECRET || 'your-whatsapp-client-secret';
-const WHATSAPP_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/whatsapp/callback` : 'http://localhost:4000/whatsapp/callback';
+const WHATSAPP_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/whatsapp/callback` : 'https://buildbridge-hub-api.loca.lt/whatsapp/callback';
 const WHATSAPP_AUTH_URL = 'https://www.facebook.com/v18.0/dialog/oauth';
 
 app.get('/whatsapp/auth', (req, res) => {
@@ -949,6 +949,439 @@ app.get('/whatsapp/projects', async (req, res) => {
   }
 });
 
+// --- Bluebeam Revu OAuth (PDF Analysis) ---
+const BLUEBEAM_CLIENT_ID = process.env.BLUEBEAM_CLIENT_ID || 'your-bluebeam-client-id';
+const BLUEBEAM_CLIENT_SECRET = process.env.BLUEBEAM_CLIENT_SECRET || 'your-bluebeam-client-secret';
+const BLUEBEAM_REDIRECT_URI = process.env.NGROK_URL ? `${process.env.NGROK_URL}/bluebeam/callback` : 'https://buildbridge-hub-api.loca.lt/bluebeam/callback';
+const BLUEBEAM_AUTH_URL = 'https://api.bluebeam.com/oauth/authorize';
+const BLUEBEAM_TOKEN_URL = 'https://api.bluebeam.com/oauth/token';
+
+app.get('/bluebeam/auth', (req, res) => {
+  // Voor development: gebruik mock OAuth flow
+  const state = Math.random().toString(36).substring(7);
+  
+  // Simuleer OAuth redirect naar mock Bluebeam pagina
+  const mockAuthUrl = `${BLUEBEAM_REDIRECT_URI}?code=mock_bluebeam_code_${Date.now()}&state=${state}`;
+  
+  console.log('Bluebeam OAuth initiated, redirecting to:', mockAuthUrl);
+  res.redirect(mockAuthUrl);
+});
+
+app.get('/bluebeam/callback', async (req, res) => {
+  const { code, state } = req.query;
+  if (!code) return res.status(400).send('No authorization code received');
+
+  try {
+    console.log('Bluebeam callback received:', { code, state });
+    
+    // Voor development: genereer mock tokens
+    const mockAccessToken = `mock_bluebeam_token_${Date.now()}`;
+    const mockRefreshToken = `mock_bluebeam_refresh_${Date.now()}`;
+    const expiresIn = 3600; // 1 uur
+    
+    console.log('Generated mock Bluebeam tokens:', { mockAccessToken, mockRefreshToken });
+    
+    res.send(`
+      <script>
+        console.log('Bluebeam OAuth callback successful');
+        window.opener && window.opener.postMessage({ 
+          bluebeam_token: '${mockAccessToken}',
+          bluebeam_refresh_token: '${mockRefreshToken}',
+          bluebeam_expires_in: ${expiresIn}
+        }, '*');
+        window.close();
+      </script>
+    `);
+  } catch (error) {
+    console.error('Bluebeam OAuth error:', error);
+    res.status(500).send(`
+      <script>
+        console.error('Bluebeam OAuth failed:', '${error.message}');
+        window.opener && window.opener.postMessage({ 
+          error: 'Bluebeam OAuth authentication failed'
+        }, '*');
+        window.close();
+      </script>
+    `);
+  }
+});
+
+// Get Bluebeam projects (PDF documents)
+app.get('/bluebeam/projects', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    // Mock data voor Bluebeam projects (PDF documents)
+    const projects = [
+      {
+        id: 'project-001',
+        name: 'Bouwtekening Hoofdgebouw',
+        status: 'reviewed',
+        progress: 85,
+        type: 'pdf',
+        lastModified: '2024-01-15T10:30:00Z',
+        size: '2.5 MB',
+        pages: 24
+      },
+      {
+        id: 'project-002',
+        name: 'Elektrische Installatie',
+        status: 'in-progress',
+        progress: 45,
+        type: 'pdf',
+        lastModified: '2024-01-14T14:20:00Z',
+        size: '1.8 MB',
+        pages: 18
+      },
+      {
+        id: 'project-003',
+        name: 'HVAC Systeem',
+        status: 'pending',
+        progress: 20,
+        type: 'pdf',
+        lastModified: '2024-01-13T09:15:00Z',
+        size: '3.2 MB',
+        pages: 32
+      }
+    ];
+
+    res.json({ projects });
+  } catch (error) {
+    console.error('Bluebeam API error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch Bluebeam projects' });
+  }
+});
+
+// Get Bluebeam files (PDF documents with metadata)
+app.get('/bluebeam/files', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    // Mock data voor Bluebeam files
+    const files = [
+      {
+        id: 'file-001',
+        name: 'Bouwtekening_Hoofdgebouw.pdf',
+        tool: 'Bluebeam Revu',
+        size: '2.5 MB',
+        type: 'pdf',
+        lastModified: '2024-01-15T10:30:00Z',
+        pages: 24,
+        annotations: 156,
+        markups: 89,
+        status: 'reviewed',
+        projectId: 'project-001'
+      },
+      {
+        id: 'file-002',
+        name: 'Elektrische_Installatie.pdf',
+        tool: 'Bluebeam Revu',
+        size: '1.8 MB',
+        type: 'pdf',
+        lastModified: '2024-01-14T14:20:00Z',
+        pages: 18,
+        annotations: 94,
+        markups: 67,
+        status: 'in-progress',
+        projectId: 'project-002'
+      },
+      {
+        id: 'file-003',
+        name: 'HVAC_Systeem.pdf',
+        tool: 'Bluebeam Revu',
+        size: '3.2 MB',
+        type: 'pdf',
+        lastModified: '2024-01-13T09:15:00Z',
+        pages: 32,
+        annotations: 203,
+        markups: 124,
+        status: 'pending',
+        projectId: 'project-003'
+      }
+    ];
+
+    res.json({ files });
+  } catch (error) {
+    console.error('Bluebeam files API error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch Bluebeam files' });
+  }
+});
+
+// Download Bluebeam PDF file
+app.get('/bluebeam/files/:fileId/download', async (req, res) => {
+  const { fileId } = req.params;
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    // Mock download URL (in real implementation, this would generate a signed URL)
+    const downloadUrl = `https://api.bluebeam.com/files/${fileId}/download?token=${token}`;
+    
+    res.json({ 
+      downloadUrl,
+      message: 'PDF file ready for download',
+      fileId,
+      expiresIn: 3600 // 1 hour
+    });
+  } catch (error) {
+    console.error('Bluebeam download error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to generate download URL' });
+  }
+});
+
+// Analyze Bluebeam PDF (extract annotations, markups, etc.)
+app.get('/bluebeam/files/:fileId/analyze', async (req, res) => {
+  const { fileId } = req.params;
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    // Mock PDF analysis data
+    const analysis = {
+      fileId,
+      fileName: `File_${fileId}.pdf`,
+      analysisDate: new Date().toISOString(),
+      summary: {
+        totalPages: 24,
+        totalAnnotations: 156,
+        totalMarkups: 89,
+        reviewStatus: 'completed',
+        approvalStatus: 'approved'
+      },
+      annotations: {
+        highlights: 45,
+        comments: 67,
+        measurements: 23,
+        stamps: 21
+      },
+      markups: {
+        text: 34,
+        shapes: 28,
+        images: 12,
+        links: 15
+      },
+      metadata: {
+        author: 'John Doe',
+        createdDate: '2024-01-10T08:00:00Z',
+        modifiedDate: '2024-01-15T10:30:00Z',
+        version: '1.2',
+        security: 'password-protected'
+      },
+      extractedText: {
+        pages: [
+          {
+            pageNumber: 1,
+            text: 'Bouwtekening Hoofdgebouw - Project XYZ...',
+            wordCount: 245
+          },
+          {
+            pageNumber: 2,
+            text: 'Technische specificaties en materialen...',
+            wordCount: 189
+          }
+        ]
+      }
+    };
+
+    res.json(analysis);
+  } catch (error) {
+    console.error('Bluebeam analysis error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to analyze PDF' });
+  }
+});
+
+// Get PDF annotations and markups
+app.get('/bluebeam/files/:fileId/annotations', async (req, res) => {
+  const { fileId } = req.params;
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No access token provided' });
+
+  try {
+    // Mock annotations data
+    const annotations = [
+      {
+        id: 'ann-001',
+        type: 'highlight',
+        page: 1,
+        content: 'Belangrijke wijziging in fundering',
+        author: 'John Doe',
+        date: '2024-01-15T10:30:00Z',
+        coordinates: { x: 150, y: 200, width: 100, height: 20 }
+      },
+      {
+        id: 'ann-002',
+        type: 'comment',
+        page: 3,
+        content: 'Controleer deze afmetingen',
+        author: 'Jane Smith',
+        date: '2024-01-14T14:20:00Z',
+        coordinates: { x: 300, y: 450, width: 80, height: 15 }
+      },
+      {
+        id: 'ann-003',
+        type: 'measurement',
+        page: 5,
+        content: 'Lengte: 12.5m',
+        author: 'Mike Johnson',
+        date: '2024-01-13T09:15:00Z',
+        coordinates: { x: 200, y: 300, width: 120, height: 10 }
+      }
+    ];
+
+    res.json({ annotations });
+  } catch (error) {
+    console.error('Bluebeam annotations error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch annotations' });
+  }
+});
+
+// --- N8N Webhook Callback Endpoint ---
+app.post('/n8n/webhook', (req, res) => {
+  console.log('N8N Webhook received:', req.body);
+  
+  // Verwerk de webhook data
+  const { event, data, source } = req.body;
+  
+  // Stuur bevestiging terug naar N8N
+  res.json({
+    success: true,
+    message: 'Webhook received successfully',
+    timestamp: new Date().toISOString(),
+    event: event,
+    data: data
+  });
+});
+
+// --- N8N OAuth Callback Endpoint ---
+app.get('/n8n/callback', (req, res) => {
+  const { code, state, tool } = req.query;
+  
+  console.log('N8N OAuth callback received:', { code, state, tool });
+  
+  if (!code) {
+    return res.status(400).json({ 
+      error: 'No authorization code received',
+      message: 'OAuth callback failed - missing authorization code'
+    });
+  }
+
+  // Stuur de OAuth data terug naar N8N
+  res.json({
+    success: true,
+    message: 'OAuth callback successful',
+    data: {
+      code: code,
+      state: state,
+      tool: tool,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+// --- N8N Data Endpoint ---
+app.get('/n8n/data/:tool', async (req, res) => {
+  const { tool } = req.params;
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No access token provided' });
+  }
+
+  try {
+    let data;
+    
+    switch(tool) {
+      case 'autocad':
+        // Haal AutoCAD data op
+        data = {
+          projects: [
+            { id: 'ac-001', name: 'AutoCAD Project 1', status: 'active' },
+            { id: 'ac-002', name: 'AutoCAD Project 2', status: 'completed' }
+          ],
+          files: [
+            { id: 'file-001', name: 'drawing.dwg', size: '2.5 MB' },
+            { id: 'file-002', name: 'design.dxf', size: '1.8 MB' }
+          ]
+        };
+        break;
+        
+      case 'bluebeam':
+        // Haal Bluebeam data op
+        data = {
+          projects: [
+            { id: 'bb-001', name: 'PDF Review Project', status: 'in-progress' },
+            { id: 'bb-002', name: 'Document Analysis', status: 'pending' }
+          ],
+          files: [
+            { id: 'pdf-001', name: 'review.pdf', pages: 24, annotations: 156 },
+            { id: 'pdf-002', name: 'analysis.pdf', pages: 18, annotations: 94 }
+          ]
+        };
+        break;
+        
+      case 'msproject':
+        // Haal MS Project data op
+        data = {
+          projects: [
+            { id: 'ms-001', name: 'Project Planning', status: 'on-track' },
+            { id: 'ms-002', name: 'Timeline Management', status: 'delayed' }
+          ],
+          tasks: [
+            { id: 'task-001', name: 'Task 1', progress: 75 },
+            { id: 'task-002', name: 'Task 2', progress: 45 }
+          ]
+        };
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Unsupported tool' });
+    }
+    
+    res.json({
+      success: true,
+      tool: tool,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error(`Error fetching ${tool} data:`, error);
+    res.status(500).json({ 
+      error: `Failed to fetch ${tool} data`,
+      message: error.message 
+    });
+  }
+});
+
+// --- N8N Status Endpoint ---
+app.get('/n8n/status', (req, res) => {
+  res.json({
+    status: 'online',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      webhook: '/n8n/webhook',
+      callback: '/n8n/callback',
+      data: '/n8n/data/:tool',
+      status: '/n8n/status'
+    },
+    available_tools: [
+      'autocad',
+      'bluebeam', 
+      'msproject',
+      'asta',
+      'revit',
+      'solibri',
+      'excel',
+      'whatsapp'
+    ]
+  });
+});
+
 app.listen(4000, () => {
   console.log('Auth server running on http://localhost:4000');
+  console.log('N8N Callback URL: https://shaky-dots-hope.loca.lt/n8n/callback');
+  console.log('N8N Webhook URL: https://shaky-dots-hope.loca.lt/n8n/webhook');
 }); 

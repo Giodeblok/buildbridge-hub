@@ -16,15 +16,17 @@ const TOOL_MAPPINGS = {
   'AutoCAD': 'autocad',
   'MS Project': 'msproject', 
   'Asta Powerproject': 'asta',
-  'Revit': 'revit'
+  'Revit': 'revit',
+  'PDF': 'pdf'
 };
 
 // Bestandsextensies per tool
 const SUPPORTED_EXTENSIONS = {
-  'AutoCAD': ['.dwg', '.dxf'],
-  'MS Project': ['.mpp', '.mpx'],
-  'Asta Powerproject': ['.pp', '.ppx'],
-  'Revit': ['.rvt', '.rfa', '.rte']
+  'AutoCAD': ['.dwg', '.dxf', '.pdf'],
+  'MS Project': ['.mpp', '.mpx', '.pdf'],
+  'Asta Powerproject': ['.pp', '.ppx', '.pdf'],
+  'Revit': ['.rvt', '.rfa', '.rte', '.pdf'],
+  'PDF': ['.pdf']
 };
 
 const FileImportDialog = ({ projectId, connectedTools, onFileImported }: FileImportDialogProps) => {
@@ -223,7 +225,7 @@ const FileImportDialog = ({ projectId, connectedTools, onFileImported }: FileImp
           type="file"
           onChange={handleFileSelect}
           className="hidden"
-          accept=".dwg,.dxf,.mpp,.mpx,.pp,.ppx,.rvt,.rfa,.rte"
+          accept=".dwg,.dxf,.mpp,.mpx,.pp,.ppx,.rvt,.rfa,.rte,.pdf"
         />
         <Button 
           onClick={() => fileInputRef.current?.click()}
@@ -268,7 +270,7 @@ const FileImportDialog = ({ projectId, connectedTools, onFileImported }: FileImp
             </AlertDialogTitle>
             <AlertDialogDescription>
               Het bestand "{errorFile}" wordt niet ondersteund. 
-              Ondersteunde bestandstypen zijn: .dwg, .dxf, .mpp, .mpx, .pp, .ppx, .rvt, .rfa, .rte
+              Ondersteunde bestandstypen zijn: .dwg, .dxf, .mpp, .mpx, .pp, .ppx, .rvt, .rfa, .rte, .pdf
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

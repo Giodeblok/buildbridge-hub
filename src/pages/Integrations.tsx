@@ -14,6 +14,8 @@ const REVIT_TOKEN_KEY = "revit_token";
 const SOLIBRI_TOKEN_KEY = "solibri_token";
 const EXCEL_TOKEN_KEY = "excel_token";
 const WHATSAPP_TOKEN_KEY = "whatsapp_token";
+const OUTLOOK_TOKEN_KEY = "outlook_token";
+const BLUEBEAM_TOKEN_KEY = "bluebeam_token";
 
 // Beschikbare tools voor toevoeging
 const availableTools = [
@@ -27,6 +29,7 @@ const availableTools = [
   { id: "autocad", name: "AutoCAD", description: "2D/3D CAD tekeningen", icon: "✏️" },
   { id: "bluebeam", name: "Bluebeam Revu", description: "PDF markup en samenwerking", icon: "📄" },
   { id: "afas", name: "AFAS", description: "ERP systeem", icon: "🏢" },
+  { id: "outlook", name: "Outlook", description: "E-mail en agenda van Microsoft", icon: "📧" },
 ];
 
 const Integrations = () => {
@@ -38,6 +41,8 @@ const Integrations = () => {
   const [solibriConnected, setSolibriConnected] = useState(false);
   const [excelConnected, setExcelConnected] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  // const [bluebeamConnected, setBluebeamConnected] = useState(false);
   const [showAddMore, setShowAddMore] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState<{ open: boolean, toolId: string | null }>({ open: false, toolId: null });
   const { toast } = useToast();
@@ -74,6 +79,8 @@ const Integrations = () => {
     setSolibriConnected(!!localStorage.getItem(SOLIBRI_TOKEN_KEY));
     setExcelConnected(!!localStorage.getItem(EXCEL_TOKEN_KEY));
     setWhatsappConnected(!!localStorage.getItem(WHATSAPP_TOKEN_KEY));
+    setOutlookConnected(!!localStorage.getItem(OUTLOOK_TOKEN_KEY));
+    // setBluebeamConnected(!!localStorage.getItem(BLUEBEAM_TOKEN_KEY));
 
     // OAuth token listener
     const handler = async (event: MessageEvent) => {
@@ -195,6 +202,62 @@ const Integrations = () => {
           });
         }
       }
+      if (event.data && event.data.outlook_token) {
+        localStorage.setItem(OUTLOOK_TOKEN_KEY, event.data.outlook_token);
+        setOutlookConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'outlook',
+              accessToken: event.data.outlook_token,
+              refreshToken: event.data.outlook_refresh_token || null,
+              expiresIn: event.data.outlook_expires_in || 3600
+            })
+          });
+        }
+      }
+      if (event.data && event.data.bluebeam_token) {
+        console.log('Bluebeam token received:', event.data.bluebeam_token);
+        localStorage.setItem(BLUEBEAM_TOKEN_KEY, event.data.bluebeam_token);
+        // setBluebeamConnected(true);
+        
+        // Sla token op in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch('http://localhost:4000/user/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              toolId: 'bluebeam',
+              accessToken: event.data.bluebeam_token,
+              refreshToken: event.data.bluebeam_refresh_token || null,
+              expiresIn: event.data.bluebeam_expires_in || 3600
+            })
+          });
+        }
+        
+        toast({
+          title: "Bluebeam Revu gekoppeld!",
+          description: "Je kunt nu PDF's analyseren en annotaties bekijken.",
+        });
+      }
+      
+      // Error handling voor Bluebeam
+      if (event.data && event.data.error && event.data.error.includes('Bluebeam')) {
+        console.error('Bluebeam OAuth error:', event.data.error);
+        toast({
+          title: "Bluebeam koppeling mislukt",
+          description: "Probeer het opnieuw of neem contact op met support.",
+          variant: "destructive"
+        });
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
@@ -263,6 +326,8 @@ const Integrations = () => {
       case 'solibri': setSolibriConnected(true); break;
       case 'excel': setExcelConnected(true); break;
       case 'whatsapp': setWhatsappConnected(true); break;
+      case 'outlook': setOutlookConnected(true); break;
+      // case 'bluebeam': setBluebeamConnected(true); break;
     }
 
     const toolNames = {
@@ -272,7 +337,9 @@ const Integrations = () => {
       'revit': 'Revit',
       'solibri': 'Solibri',
       'excel': 'Excel',
-      'whatsapp': 'WhatsApp'
+      'whatsapp': 'WhatsApp',
+      'outlook': 'Outlook',
+      // 'bluebeam': 'Bluebeam Revu'
     };
 
     toast({
@@ -302,6 +369,17 @@ const Integrations = () => {
   const handleWhatsappConnect = () => {
     window.open(`${baseUrl}/whatsapp/auth`, "_blank", "width=500,height=700");
   };
+  const handleOutlookConnect = () => {
+    window.open(
+      `${baseUrl}/outlook/auth`,
+      '_blank',
+      'width=600,height=700'
+    );
+  };
+
+  // const handleBluebeamConnect = () => {
+  //   window.open(`${baseUrl}/bluebeam/auth`, "_blank", "width=500,height=700");
+  // };
 
   const removeTokenForTool = (toolId: string) => {
     switch (toolId) {
@@ -312,6 +390,8 @@ const Integrations = () => {
       case 'solibri': localStorage.removeItem(SOLIBRI_TOKEN_KEY); break;
       case 'excel': localStorage.removeItem(EXCEL_TOKEN_KEY); break;
       case 'whatsapp': localStorage.removeItem(WHATSAPP_TOKEN_KEY); break;
+      case 'outlook': localStorage.removeItem(OUTLOOK_TOKEN_KEY); break;
+      // case 'bluebeam': localStorage.removeItem(BLUEBEAM_TOKEN_KEY); break;
     }
   };
 
@@ -346,6 +426,8 @@ const Integrations = () => {
       case 'solibri': localStorage.removeItem(SOLIBRI_TOKEN_KEY); break;
       case 'excel': localStorage.removeItem(EXCEL_TOKEN_KEY); break;
       case 'whatsapp': localStorage.removeItem(WHATSAPP_TOKEN_KEY); break;
+      case 'outlook': localStorage.removeItem(OUTLOOK_TOKEN_KEY); break;
+              // case 'bluebeam': localStorage.removeItem(BLUEBEAM_TOKEN_KEY); break;
     }
 
     // Verwijder alleen de koppeling uit de user_tools tabel
@@ -428,6 +510,7 @@ const Integrations = () => {
       case 'solibri': handleSolibriConnect(); break;
       case 'excel': handleExcelConnect(); break;
       case 'whatsapp': handleWhatsappConnect(); break;
+      case 'outlook': handleOutlookConnect(); break;
     }
   };
 
@@ -449,6 +532,7 @@ const Integrations = () => {
           case 'solibri': return SOLIBRI_TOKEN_KEY;
           case 'excel': return EXCEL_TOKEN_KEY;
           case 'whatsapp': return WHATSAPP_TOKEN_KEY;
+          case 'outlook': return OUTLOOK_TOKEN_KEY;
           default: return null;
         }
       })();
@@ -545,6 +629,23 @@ const Integrations = () => {
     addTokenForEmail("giodeblok@gmail.com", "autocad", autocadToken);
   };
 
+  // Functie om Outlook token toe te voegen voor giodeblok@gmail.com (tijdelijke test)
+  const addOutlookTokenForGiodeblok = () => {
+    // Voor testing - vervang dit met een echte Outlook token
+    const outlookToken = "YOUR_OUTLOOK_TOKEN_HERE";
+    
+    if (outlookToken === "YOUR_OUTLOOK_TOKEN_HERE") {
+      toast({
+        title: "Token vereist",
+        description: "Vervang 'YOUR_OUTLOOK_TOKEN_HERE' met de daadwerkelijke Outlook token.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addTokenForEmail("giodeblok@gmail.com", "outlook", outlookToken);
+  };
+
   const integrationStatus = selectedTools.map(toolId => {
     // Check of tool is gemarkeerd als disconnected
     const isDisconnected = disconnectedTools.includes(toolId);
@@ -558,6 +659,7 @@ const Integrations = () => {
         case 'solibri': return solibriConnected;
         case 'excel': return excelConnected;
         case 'whatsapp': return whatsappConnected;
+        case 'outlook': return outlookConnected;
         default: return Math.random() > 0.3;
       }
     })();

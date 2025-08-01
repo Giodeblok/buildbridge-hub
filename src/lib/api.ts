@@ -3,12 +3,12 @@ export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     // Client-side: gebruik window.location of environment variable
     return process.env.NODE_ENV === 'production' 
-      ? 'https://your-app-name.vercel.app/api' 
+      ? 'https://buildbridge-hub-production.up.railway.app' 
       : 'http://localhost:4000';
   }
   // Server-side: gebruik environment variable
   return process.env.NODE_ENV === 'production' 
-    ? 'https://your-app-name.vercel.app/api' 
+    ? 'https://buildbridge-hub-production.up.railway.app' 
     : 'http://localhost:4000';
 };
 

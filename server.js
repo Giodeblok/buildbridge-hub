@@ -12,6 +12,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint voor Railway
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    services: {
+      msproject: MICROSOFT_CLIENT_ID !== 'your-microsoft-client-id',
+      autocad: true,
+      asta: true,
+      revit: true
+    }
+  });
+});
+
 const SECRET = 'dev_secret';
 const MOCK_USER = { email: 'test@demo.nl', password: 'test123', id: 1, name: 'Demo User' };
 
@@ -51,6 +65,14 @@ const MS_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token
 const MS_SCOPES = 'offline_access user.read Tasks.Read Project.Read.All';
 
 app.get('/msproject/auth', (req, res) => {
+  // Check of Microsoft Client ID is geconfigureerd
+  if (!MICROSOFT_CLIENT_ID || MICROSOFT_CLIENT_ID === 'your-microsoft-client-id') {
+    return res.status(400).json({ 
+      error: 'Microsoft Client ID niet geconfigureerd',
+      message: 'Voeg MICROSOFT_CLIENT_ID toe aan je environment variables'
+    });
+  }
+
   const state = Math.random().toString(36).substring(7);
   const params = querystring.stringify({
     client_id: MICROSOFT_CLIENT_ID,
